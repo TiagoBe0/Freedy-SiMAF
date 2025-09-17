@@ -1,0 +1,239 @@
+2025-09-17 20:49:23,998 - __main__ - INFO - Starting Vacancy Predictor GUI...
+2025-09-17 20:49:23,999 - __main__ - ERROR - Failed to import GUI components: attempted relative import with no known parent package
+2025-09-17 20:50:43,776 - vacancy_predictor.main - INFO - Starting Vacancy Predictor GUI...
+2025-09-17 20:50:44,987 - vacancy_predictor.gui.app - INFO - Vacancy Predictor ML Suite initialized
+2025-09-17 20:51:00,007 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - Directorio seleccionado: 114 archivos .dump encontrados
+2025-09-17 20:51:02,131 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - Configuración aplicada correctamente
+2025-09-17 20:51:02,132 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - Procesando archivos...
+2025-09-17 20:51:02,133 - vacancy_predictor.core.batch_processor - INFO - Encontrados 114 archivos .dump
+2025-09-17 20:51:02,133 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (0/114) Iniciando procesamiento...
+2025-09-17 20:51:02,136 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (1/114) Procesando dump.ni_fcc_all_props_.5b.000000
+2025-09-17 20:51:02,206 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.5b.000000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:02,206 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (2/114) Procesando dump.ni_fcc_all_props_.5b.001000
+2025-09-17 20:51:02,270 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.5b.001000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:02,271 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (3/114) Procesando dump.ni_fcc_all_props_.5b.002000
+2025-09-17 20:51:02,336 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.5b.002000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:02,336 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (4/114) Procesando dump.ni_fcc_all_props_.5b.003000
+2025-09-17 20:51:02,399 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.5b.003000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:02,399 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (5/114) Procesando dump.ni_fcc_all_props_.5b.004000
+2025-09-17 20:51:02,462 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.5b.004000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:02,462 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (6/114) Procesando dump.ni_fcc_all_props_.5b.005000
+2025-09-17 20:51:02,526 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.5b.005000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:02,526 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (7/114) Procesando dump.ni_fcc_all_props_.6b.000000
+2025-09-17 20:51:02,590 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.6b.000000: 16381 átomos, 3 vacancias
+2025-09-17 20:51:02,590 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (8/114) Procesando dump.ni_fcc_all_props_.6b.001000
+2025-09-17 20:51:02,657 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.6b.001000: 16381 átomos, 3 vacancias
+2025-09-17 20:51:02,657 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (9/114) Procesando dump.ni_fcc_all_props_.6b.002000
+2025-09-17 20:51:02,725 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.6b.002000: 16381 átomos, 3 vacancias
+2025-09-17 20:51:02,726 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (10/114) Procesando dump.ni_fcc_all_props_.6b.003000
+2025-09-17 20:51:02,791 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.6b.003000: 16381 átomos, 3 vacancias
+2025-09-17 20:51:02,791 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (11/114) Procesando dump.ni_fcc_all_props_.6b.004000
+2025-09-17 20:51:02,856 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.6b.004000: 16381 átomos, 3 vacancias
+2025-09-17 20:51:02,857 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (12/114) Procesando dump.ni_fcc_all_props_.6b.005000
+2025-09-17 20:51:02,923 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.6b.005000: 16381 átomos, 3 vacancias
+2025-09-17 20:51:02,923 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (13/114) Procesando dump.ni_fcc_all_props_.7b.000000
+2025-09-17 20:51:02,987 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.7b.000000: 16380 átomos, 4 vacancias
+2025-09-17 20:51:02,987 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (14/114) Procesando dump.ni_fcc_all_props_.7b.001000
+2025-09-17 20:51:03,057 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.7b.001000: 16380 átomos, 4 vacancias
+2025-09-17 20:51:03,058 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (15/114) Procesando dump.ni_fcc_all_props_.7b.002000
+2025-09-17 20:51:03,125 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.7b.002000: 16380 átomos, 4 vacancias
+2025-09-17 20:51:03,126 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (16/114) Procesando dump.ni_fcc_all_props_.7b.003000
+2025-09-17 20:51:03,191 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.7b.003000: 16380 átomos, 4 vacancias
+2025-09-17 20:51:03,191 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (17/114) Procesando dump.ni_fcc_all_props_.7b.004000
+2025-09-17 20:51:03,257 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.7b.004000: 16380 átomos, 4 vacancias
+2025-09-17 20:51:03,257 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (18/114) Procesando dump.ni_fcc_all_props_.7b.005000
+2025-09-17 20:51:03,326 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.7b.005000: 16380 átomos, 4 vacancias
+2025-09-17 20:51:03,326 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (19/114) Procesando dump.ni_fcc_all_props_.8b.000000
+2025-09-17 20:51:03,389 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.8b.000000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:03,390 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (20/114) Procesando dump.ni_fcc_all_props_.8b.001000
+2025-09-17 20:51:03,454 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.8b.001000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:03,454 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (21/114) Procesando dump.ni_fcc_all_props_.8b.002000
+2025-09-17 20:51:03,519 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.8b.002000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:03,520 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (22/114) Procesando dump.ni_fcc_all_props_.8b.003000
+2025-09-17 20:51:03,583 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.8b.003000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:03,584 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (23/114) Procesando dump.ni_fcc_all_props_.8b.004000
+2025-09-17 20:51:03,648 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.8b.004000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:03,648 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (24/114) Procesando dump.ni_fcc_all_props_.8b.005000
+2025-09-17 20:51:03,713 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.8b.005000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:03,713 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (25/114) Procesando dump.ni_fcc_all_props_.9b.000000
+2025-09-17 20:51:03,776 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.9b.000000: 16372 átomos, 12 vacancias
+2025-09-17 20:51:03,776 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (26/114) Procesando dump.ni_fcc_all_props_.9b.001000
+2025-09-17 20:51:03,839 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.9b.001000: 16372 átomos, 12 vacancias
+2025-09-17 20:51:03,840 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (27/114) Procesando dump.ni_fcc_all_props_.9b.002000
+2025-09-17 20:51:03,905 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.9b.002000: 16372 átomos, 12 vacancias
+2025-09-17 20:51:03,905 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (28/114) Procesando dump.ni_fcc_all_props_.9b.003000
+2025-09-17 20:51:03,970 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.9b.003000: 16372 átomos, 12 vacancias
+2025-09-17 20:51:03,970 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (29/114) Procesando dump.ni_fcc_all_props_.9b.004000
+2025-09-17 20:51:04,034 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.9b.004000: 16372 átomos, 12 vacancias
+2025-09-17 20:51:04,035 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (30/114) Procesando dump.ni_fcc_all_props_.9b.005000
+2025-09-17 20:51:04,100 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_.9b.005000: 16372 átomos, 12 vacancias
+2025-09-17 20:51:04,100 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (31/114) Procesando dump.ni_fcc_all_props_0.5.000000
+2025-09-17 20:51:04,164 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.5.000000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:04,164 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (32/114) Procesando dump.ni_fcc_all_props_0.5.001000
+2025-09-17 20:51:04,229 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.5.001000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:04,230 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (33/114) Procesando dump.ni_fcc_all_props_0.5.002000
+2025-09-17 20:51:04,294 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.5.002000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:04,294 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (34/114) Procesando dump.ni_fcc_all_props_0.5.003000
+2025-09-17 20:51:04,357 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.5.003000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:04,358 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (35/114) Procesando dump.ni_fcc_all_props_0.5.004000
+2025-09-17 20:51:04,423 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.5.004000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:04,424 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (36/114) Procesando dump.ni_fcc_all_props_0.5.005000
+2025-09-17 20:51:04,487 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.5.005000: 16383 átomos, 1 vacancias
+2025-09-17 20:51:04,488 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (37/114) Procesando dump.ni_fcc_all_props_0.8.000000
+2025-09-17 20:51:04,551 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.8.000000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:04,551 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (38/114) Procesando dump.ni_fcc_all_props_0.8.001000
+2025-09-17 20:51:04,617 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.8.001000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:04,617 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (39/114) Procesando dump.ni_fcc_all_props_0.8.002000
+2025-09-17 20:51:04,682 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.8.002000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:04,682 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (40/114) Procesando dump.ni_fcc_all_props_0.8.003000
+2025-09-17 20:51:04,746 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.8.003000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:04,746 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (41/114) Procesando dump.ni_fcc_all_props_0.8.004000
+2025-09-17 20:51:04,811 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.8.004000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:04,811 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (42/114) Procesando dump.ni_fcc_all_props_0.8.005000
+2025-09-17 20:51:04,875 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_0.8.005000: 16376 átomos, 8 vacancias
+2025-09-17 20:51:04,875 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (43/114) Procesando dump.ni_fcc_all_props_1.1.000000
+2025-09-17 20:51:04,939 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.000000: 16360 átomos, 24 vacancias
+2025-09-17 20:51:04,939 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (44/114) Procesando dump.ni_fcc_all_props_1.1.001000
+2025-09-17 20:51:05,005 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.001000: 16360 átomos, 24 vacancias
+2025-09-17 20:51:05,005 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (45/114) Procesando dump.ni_fcc_all_props_1.1.002000
+2025-09-17 20:51:05,070 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.002000: 16360 átomos, 24 vacancias
+2025-09-17 20:51:05,070 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (46/114) Procesando dump.ni_fcc_all_props_1.1.003000
+2025-09-17 20:51:05,135 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.003000: 16360 átomos, 24 vacancias
+2025-09-17 20:51:05,135 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (47/114) Procesando dump.ni_fcc_all_props_1.1.004000
+2025-09-17 20:51:05,200 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.004000: 16360 átomos, 24 vacancias
+2025-09-17 20:51:05,200 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (48/114) Procesando dump.ni_fcc_all_props_1.1.005000
+2025-09-17 20:51:05,265 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.005000: 16360 átomos, 24 vacancias
+2025-09-17 20:51:05,265 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (49/114) Procesando dump.ni_fcc_all_props_1.1.b.000000
+2025-09-17 20:51:05,327 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.b.000000: 16363 átomos, 21 vacancias
+2025-09-17 20:51:05,328 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (50/114) Procesando dump.ni_fcc_all_props_1.1.b.001000
+2025-09-17 20:51:05,393 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.b.001000: 16363 átomos, 21 vacancias
+2025-09-17 20:51:05,393 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (51/114) Procesando dump.ni_fcc_all_props_1.1.b.002000
+2025-09-17 20:51:05,458 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.b.002000: 16363 átomos, 21 vacancias
+2025-09-17 20:51:05,458 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (52/114) Procesando dump.ni_fcc_all_props_1.1.b.003000
+2025-09-17 20:51:05,522 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.b.003000: 16363 átomos, 21 vacancias
+2025-09-17 20:51:05,522 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (53/114) Procesando dump.ni_fcc_all_props_1.1.b.004000
+2025-09-17 20:51:05,587 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.b.004000: 16363 átomos, 21 vacancias
+2025-09-17 20:51:05,587 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (54/114) Procesando dump.ni_fcc_all_props_1.1.b.005000
+2025-09-17 20:51:05,650 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.1.b.005000: 16363 átomos, 21 vacancias
+2025-09-17 20:51:05,651 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (55/114) Procesando dump.ni_fcc_all_props_1.3.000000
+2025-09-17 20:51:05,713 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.3.000000: 16348 átomos, 36 vacancias
+2025-09-17 20:51:05,713 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (56/114) Procesando dump.ni_fcc_all_props_1.3.001000
+2025-09-17 20:51:05,777 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.3.001000: 16348 átomos, 36 vacancias
+2025-09-17 20:51:05,778 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (57/114) Procesando dump.ni_fcc_all_props_1.3.002000
+2025-09-17 20:51:05,842 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.3.002000: 16348 átomos, 36 vacancias
+2025-09-17 20:51:05,842 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (58/114) Procesando dump.ni_fcc_all_props_1.3.003000
+2025-09-17 20:51:05,906 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.3.003000: 16348 átomos, 36 vacancias
+2025-09-17 20:51:05,906 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (59/114) Procesando dump.ni_fcc_all_props_1.3.004000
+2025-09-17 20:51:05,971 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.3.004000: 16348 átomos, 36 vacancias
+2025-09-17 20:51:05,971 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (60/114) Procesando dump.ni_fcc_all_props_1.3.005000
+2025-09-17 20:51:06,036 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.3.005000: 16348 átomos, 36 vacancias
+2025-09-17 20:51:06,036 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (61/114) Procesando dump.ni_fcc_all_props_1.5.000000
+2025-09-17 20:51:06,099 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.5.000000: 16328 átomos, 56 vacancias
+2025-09-17 20:51:06,099 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (62/114) Procesando dump.ni_fcc_all_props_1.5.001000
+2025-09-17 20:51:06,162 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.5.001000: 16328 átomos, 56 vacancias
+2025-09-17 20:51:06,162 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (63/114) Procesando dump.ni_fcc_all_props_1.5.002000
+2025-09-17 20:51:06,226 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.5.002000: 16328 átomos, 56 vacancias
+2025-09-17 20:51:06,226 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (64/114) Procesando dump.ni_fcc_all_props_1.5.003000
+2025-09-17 20:51:06,290 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.5.003000: 16328 átomos, 56 vacancias
+2025-09-17 20:51:06,290 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (65/114) Procesando dump.ni_fcc_all_props_1.5.004000
+2025-09-17 20:51:06,353 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.5.004000: 16328 átomos, 56 vacancias
+2025-09-17 20:51:06,353 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (66/114) Procesando dump.ni_fcc_all_props_1.5.005000
+2025-09-17 20:51:06,417 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.5.005000: 16328 átomos, 56 vacancias
+2025-09-17 20:51:06,417 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (67/114) Procesando dump.ni_fcc_all_props_1.7.000000
+2025-09-17 20:51:06,479 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.7.000000: 16304 átomos, 80 vacancias
+2025-09-17 20:51:06,479 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (68/114) Procesando dump.ni_fcc_all_props_1.7.001000
+2025-09-17 20:51:06,543 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.7.001000: 16304 átomos, 80 vacancias
+2025-09-17 20:51:06,543 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (69/114) Procesando dump.ni_fcc_all_props_1.7.002000
+2025-09-17 20:51:06,607 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.7.002000: 16304 átomos, 80 vacancias
+2025-09-17 20:51:06,607 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (70/114) Procesando dump.ni_fcc_all_props_1.7.003000
+2025-09-17 20:51:06,670 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.7.003000: 16304 átomos, 80 vacancias
+2025-09-17 20:51:06,670 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (71/114) Procesando dump.ni_fcc_all_props_1.7.004000
+2025-09-17 20:51:06,734 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.7.004000: 16304 átomos, 80 vacancias
+2025-09-17 20:51:06,734 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (72/114) Procesando dump.ni_fcc_all_props_1.7.005000
+2025-09-17 20:51:06,798 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.7.005000: 16304 átomos, 80 vacancias
+2025-09-17 20:51:06,798 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (73/114) Procesando dump.ni_fcc_all_props_1.9.000000
+2025-09-17 20:51:06,860 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.9.000000: 16272 átomos, 112 vacancias
+2025-09-17 20:51:06,860 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (74/114) Procesando dump.ni_fcc_all_props_1.9.001000
+2025-09-17 20:51:06,924 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.9.001000: 16272 átomos, 112 vacancias
+2025-09-17 20:51:06,925 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (75/114) Procesando dump.ni_fcc_all_props_1.9.002000
+2025-09-17 20:51:06,988 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.9.002000: 16272 átomos, 112 vacancias
+2025-09-17 20:51:06,989 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (76/114) Procesando dump.ni_fcc_all_props_1.9.003000
+2025-09-17 20:51:07,053 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.9.003000: 16272 átomos, 112 vacancias
+2025-09-17 20:51:07,053 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (77/114) Procesando dump.ni_fcc_all_props_1.9.004000
+2025-09-17 20:51:07,132 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.9.004000: 16272 átomos, 112 vacancias
+2025-09-17 20:51:07,133 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (78/114) Procesando dump.ni_fcc_all_props_1.9.005000
+2025-09-17 20:51:07,195 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1.9.005000: 16272 átomos, 112 vacancias
+2025-09-17 20:51:07,196 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (79/114) Procesando dump.ni_fcc_all_props_1b.000000
+2025-09-17 20:51:07,256 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1b.000000: 16369 átomos, 15 vacancias
+2025-09-17 20:51:07,257 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (80/114) Procesando dump.ni_fcc_all_props_1b.001000
+2025-09-17 20:51:07,320 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1b.001000: 16369 átomos, 15 vacancias
+2025-09-17 20:51:07,320 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (81/114) Procesando dump.ni_fcc_all_props_1b.002000
+2025-09-17 20:51:07,384 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1b.002000: 16369 átomos, 15 vacancias
+2025-09-17 20:51:07,385 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (82/114) Procesando dump.ni_fcc_all_props_1b.003000
+2025-09-17 20:51:07,448 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1b.003000: 16369 átomos, 15 vacancias
+2025-09-17 20:51:07,449 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (83/114) Procesando dump.ni_fcc_all_props_1b.004000
+2025-09-17 20:51:07,512 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1b.004000: 16369 átomos, 15 vacancias
+2025-09-17 20:51:07,512 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (84/114) Procesando dump.ni_fcc_all_props_1b.005000
+2025-09-17 20:51:07,576 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_1b.005000: 16369 átomos, 15 vacancias
+2025-09-17 20:51:07,576 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (85/114) Procesando dump.ni_fcc_all_props_2.1.000000
+2025-09-17 20:51:07,640 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.1.000000: 16227 átomos, 157 vacancias
+2025-09-17 20:51:07,640 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (86/114) Procesando dump.ni_fcc_all_props_2.1.001000
+2025-09-17 20:51:07,704 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.1.001000: 16227 átomos, 157 vacancias
+2025-09-17 20:51:07,704 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (87/114) Procesando dump.ni_fcc_all_props_2.1.002000
+2025-09-17 20:51:07,768 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.1.002000: 16227 átomos, 157 vacancias
+2025-09-17 20:51:07,769 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (88/114) Procesando dump.ni_fcc_all_props_2.1.003000
+2025-09-17 20:51:07,831 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.1.003000: 16227 átomos, 157 vacancias
+2025-09-17 20:51:07,832 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (89/114) Procesando dump.ni_fcc_all_props_2.1.004000
+2025-09-17 20:51:07,896 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.1.004000: 16227 átomos, 157 vacancias
+2025-09-17 20:51:07,896 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (90/114) Procesando dump.ni_fcc_all_props_2.1.005000
+2025-09-17 20:51:07,961 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.1.005000: 16227 átomos, 157 vacancias
+2025-09-17 20:51:07,962 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (91/114) Procesando dump.ni_fcc_all_props_2.3.000000
+2025-09-17 20:51:08,025 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.3.000000: 16181 átomos, 203 vacancias
+2025-09-17 20:51:08,025 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (92/114) Procesando dump.ni_fcc_all_props_2.3.001000
+2025-09-17 20:51:08,089 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.3.001000: 16181 átomos, 203 vacancias
+2025-09-17 20:51:08,089 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (93/114) Procesando dump.ni_fcc_all_props_2.3.002000
+2025-09-17 20:51:08,153 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.3.002000: 16181 átomos, 203 vacancias
+2025-09-17 20:51:08,154 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (94/114) Procesando dump.ni_fcc_all_props_2.3.003000
+2025-09-17 20:51:08,218 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.3.003000: 16181 átomos, 203 vacancias
+2025-09-17 20:51:08,218 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (95/114) Procesando dump.ni_fcc_all_props_2.3.004000
+2025-09-17 20:51:08,283 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.3.004000: 16181 átomos, 203 vacancias
+2025-09-17 20:51:08,283 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (96/114) Procesando dump.ni_fcc_all_props_2.3.005000
+2025-09-17 20:51:08,347 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.3.005000: 16181 átomos, 203 vacancias
+2025-09-17 20:51:08,348 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (97/114) Procesando dump.ni_fcc_all_props_2.5.000000
+2025-09-17 20:51:08,410 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.5.000000: 16120 átomos, 264 vacancias
+2025-09-17 20:51:08,410 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (98/114) Procesando dump.ni_fcc_all_props_2.5.001000
+2025-09-17 20:51:08,473 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.5.001000: 16120 átomos, 264 vacancias
+2025-09-17 20:51:08,473 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (99/114) Procesando dump.ni_fcc_all_props_2.5.002000
+2025-09-17 20:51:08,537 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.5.002000: 16120 átomos, 264 vacancias
+2025-09-17 20:51:08,537 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (100/114) Procesando dump.ni_fcc_all_props_2.5.003000
+2025-09-17 20:51:08,600 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.5.003000: 16120 átomos, 264 vacancias
+2025-09-17 20:51:08,601 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (101/114) Procesando dump.ni_fcc_all_props_2.5.004000
+2025-09-17 20:51:08,664 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.5.004000: 16120 átomos, 264 vacancias
+2025-09-17 20:51:08,664 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (102/114) Procesando dump.ni_fcc_all_props_2.5.005000
+2025-09-17 20:51:08,728 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.5.005000: 16120 átomos, 264 vacancias
+2025-09-17 20:51:08,728 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (103/114) Procesando dump.ni_fcc_all_props_2.7.000000
+2025-09-17 20:51:08,790 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.7.000000: 16047 átomos, 337 vacancias
+2025-09-17 20:51:08,790 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (104/114) Procesando dump.ni_fcc_all_props_2.7.001000
+2025-09-17 20:51:08,852 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.7.001000: 16047 átomos, 337 vacancias
+2025-09-17 20:51:08,853 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (105/114) Procesando dump.ni_fcc_all_props_2.7.002000
+2025-09-17 20:51:08,916 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.7.002000: 16047 átomos, 337 vacancias
+2025-09-17 20:51:08,917 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (106/114) Procesando dump.ni_fcc_all_props_2.7.003000
+2025-09-17 20:51:08,979 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.7.003000: 16047 átomos, 337 vacancias
+2025-09-17 20:51:08,980 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (107/114) Procesando dump.ni_fcc_all_props_2.7.004000
+2025-09-17 20:51:09,042 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.7.004000: 16047 átomos, 337 vacancias
+2025-09-17 20:51:09,043 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (108/114) Procesando dump.ni_fcc_all_props_2.7.005000
+2025-09-17 20:51:09,106 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_2.7.005000: 16047 átomos, 337 vacancias
+2025-09-17 20:51:09,106 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (109/114) Procesando dump.ni_fcc_all_props_3.5000000
+2025-09-17 20:51:09,168 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_3.5000000: 15701 átomos, 683 vacancias
+2025-09-17 20:51:09,168 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (110/114) Procesando dump.ni_fcc_all_props_3.5001000
+2025-09-17 20:51:09,233 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_3.5001000: 15701 átomos, 683 vacancias
+2025-09-17 20:51:09,233 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (111/114) Procesando dump.ni_fcc_all_props_3.5002000
+2025-09-17 20:51:09,296 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_3.5002000: 15701 átomos, 683 vacancias
+2025-09-17 20:51:09,296 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (112/114) Procesando dump.ni_fcc_all_props_3.5003000
+2025-09-17 20:51:09,358 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_3.5003000: 15701 átomos, 683 vacancias
+2025-09-17 20:51:09,358 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (113/114) Procesando dump.ni_fcc_all_props_3.5004000
+2025-09-17 20:51:09,420 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_3.5004000: 15701 átomos, 683 vacancias
+2025-09-17 20:51:09,420 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (114/114) Procesando dump.ni_fcc_all_props_3.5005000
+2025-09-17 20:51:09,482 - vacancy_predictor.core.batch_processor - INFO - Procesado dump.ni_fcc_all_props_3.5005000: 15701 átomos, 683 vacancias
+2025-09-17 20:51:09,487 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - (114/114) Procesamiento completado
+2025-09-17 20:51:09,507 - vacancy_predictor.gui.tabs.batch_processor_tab - INFO - Procesamiento completado: 114 archivos procesados
