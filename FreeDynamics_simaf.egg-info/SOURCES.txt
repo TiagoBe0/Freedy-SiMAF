@@ -12,11 +12,15 @@ vacancy_predictor/main.py
 vacancy_predictor/core/__init__.py
 vacancy_predictor/core/batch_processor.py
 vacancy_predictor/core/data_processor.py
+vacancy_predictor/core/enhanced_ml/__init__.py
+vacancy_predictor/core/enhanced_ml/model_configuration_tab.py
+vacancy_predictor/core/enhanced_ml/multi_model_processor.py
 vacancy_predictor/gui/__init__.py
 vacancy_predictor/gui/app.py
 vacancy_predictor/gui/tabs/__init__.py
 vacancy_predictor/gui/tabs/advanced_ml_tab.py
 vacancy_predictor/gui/tabs/batch_processor_tab.py
+vacancy_predictor/gui/tabs/multi_model_tab.py
 vacancy_predictor/utils/__init__.py
 vacancy_predictor/utils/file_handlers.py
 vacancy_predictor/utils/validators.py

@@ -1,7 +1,6 @@
 """
 Tab para procesamiento batch de archivos LAMMPS dump con selección de features
-Incluye tabla integrada para seleccionar features antes del entrenamiento
-VERSIÓN COMPLETA Y CORREGIDA
+VERSIÓN COMPLETA con botón de entrenamiento integrado
 """
 
 import tkinter as tk
@@ -20,7 +19,7 @@ from vacancy_predictor.core.batch_processor import BatchDumpProcessor
 logger = logging.getLogger(__name__)
 
 class BatchProcessingTab:
-    """Tab para procesamiento batch con selección de features integrada"""
+    """Tab para procesamiento batch con selección de features y entrenamiento integrado"""
     
     def __init__(self, parent, data_loaded_callback: Callable):
         self.parent = parent
@@ -42,379 +41,257 @@ class BatchProcessingTab:
         self.energy_max_var = tk.DoubleVar(value=-3.0)
         self.energy_bins_var = tk.IntVar(value=10)
         
-        # Variables de estado
+        # Variables de entrenamiento ML
+        self.test_size_var = tk.DoubleVar(value=0.2)
+        self.n_estimators_var = tk.IntVar(value=100)
+        self.random_state_var = tk.IntVar(value=42)
+        
+        # Dataset y estado
         self.current_dataset = None
-        self.processing = False
-        
-        # Variables de progreso
-        self.progress_var = tk.DoubleVar()
-        self.status_var = tk.StringVar(value="Listo para procesar archivos")
-        
-        # Variables para selección de features
         self.selected_features = set()
-        self.feature_vars = {}
-        self.target_column = "vacancies"
+        self.trained_model = None
+        self.is_processing = False
+        self.is_training = False
         
+        # Crear interfaz
         self.create_widgets()
     
     def create_widgets(self):
-        """Crear widgets del tab con notebook interno"""
-        main_container = ttk.Frame(self.frame, padding="10")
-        main_container.pack(fill="both", expand=True)
+        """Crear todos los widgets del tab"""
+        # Crear notebook para secciones
+        self.notebook = ttk.Notebook(self.frame)
+        self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Crear notebook para sub-tabs
-        self.notebook = ttk.Notebook(main_container)
-        self.notebook.pack(fill="both", expand=True)
-        
-        # Tab 1: Procesamiento
+        # 1. Pestaña de configuración y procesamiento
         self.create_processing_tab()
         
-        # Tab 2: Selección de Features  
-        self.create_feature_selection_tab()
+        # 2. Pestaña de selección de features
+        self.create_features_tab()
         
-        # Tab 3: Resultados y Exportación
+        # 3. Pestaña de entrenamiento ML
+        self.create_training_tab()
+        
+        # 4. Pestaña de resultados
         self.create_results_tab()
     
     def create_processing_tab(self):
-        """Tab de procesamiento de archivos"""
+        """Crear pestaña de configuración y procesamiento"""
         process_frame = ttk.Frame(self.notebook)
-        self.notebook.add(process_frame, text="🔄 Procesamiento")
+        self.notebook.add(process_frame, text="🔧 Configuración & Procesamiento")
         
-        # Sección de selección de directorio
-        self.create_input_section(process_frame)
+        # Configuración LAMMPS
+        config_frame = ttk.LabelFrame(process_frame, text="Configuración LAMMPS", padding="10")
+        config_frame.pack(fill="x", padx=10, pady=5)
         
-        # Sección de configuración
-        self.create_configuration_section(process_frame)
+        # Parámetros en grid
+        ttk.Label(config_frame, text="Número total de átomos:").grid(row=0, column=0, sticky="w", padx=5, pady=2)
+        ttk.Entry(config_frame, textvariable=self.atm_total_var, width=15).grid(row=0, column=1, padx=5, pady=2)
         
-        # Sección de procesamiento y progreso
-        self.create_processing_section(process_frame)
-    
-    def create_input_section(self, parent):
-        """Sección de selección de directorio"""
-        input_frame = ttk.LabelFrame(parent, text="📁 Selección de Archivos", padding="10")
-        input_frame.pack(fill="x", pady=(0, 10))
+        ttk.Label(config_frame, text="Energía mínima (eV):").grid(row=1, column=0, sticky="w", padx=5, pady=2)
+        ttk.Entry(config_frame, textvariable=self.energy_min_var, width=15).grid(row=1, column=1, padx=5, pady=2)
         
-        # Directorio de entrada
-        dir_frame = ttk.Frame(input_frame)
-        dir_frame.pack(fill="x", pady=(0, 10))
+        ttk.Label(config_frame, text="Energía máxima (eV):").grid(row=2, column=0, sticky="w", padx=5, pady=2)
+        ttk.Entry(config_frame, textvariable=self.energy_max_var, width=15).grid(row=2, column=1, padx=5, pady=2)
         
-        ttk.Label(dir_frame, text="Directorio con archivos .dump:").pack(anchor="w")
+        ttk.Label(config_frame, text="Bins de energía:").grid(row=3, column=0, sticky="w", padx=5, pady=2)
+        ttk.Entry(config_frame, textvariable=self.energy_bins_var, width=15).grid(row=3, column=1, padx=5, pady=2)
         
-        entry_frame = ttk.Frame(dir_frame)
-        entry_frame.pack(fill="x", pady=(5, 0))
+        # Directorios
+        dirs_frame = ttk.LabelFrame(process_frame, text="Directorios", padding="10")
+        dirs_frame.pack(fill="x", padx=10, pady=5)
         
-        ttk.Entry(entry_frame, textvariable=self.directory_var, 
-                 state="readonly", width=50).pack(side="left", fill="x", expand=True)
+        ttk.Label(dirs_frame, text="Directorio con dumps:").grid(row=0, column=0, sticky="w", padx=5, pady=2)
+        ttk.Entry(dirs_frame, textvariable=self.directory_var, width=50).grid(row=0, column=1, padx=5, pady=2)
+        ttk.Button(dirs_frame, text="Explorar...", command=self.browse_directory).grid(row=0, column=2, padx=5, pady=2)
         
-        ttk.Button(entry_frame, text="Explorar...", 
-                  command=self.browse_directory).pack(side="right", padx=(5, 0))
+        ttk.Label(dirs_frame, text="Directorio de salida:").grid(row=1, column=0, sticky="w", padx=5, pady=2)
+        ttk.Entry(dirs_frame, textvariable=self.output_dir_var, width=50).grid(row=1, column=1, padx=5, pady=2)
+        ttk.Button(dirs_frame, text="Explorar...", command=self.browse_output_directory).grid(row=1, column=2, padx=5, pady=2)
         
-        # Directorio de salida
-        output_frame = ttk.Frame(input_frame)
-        output_frame.pack(fill="x")
+        # Botón de procesamiento
+        process_btn_frame = ttk.Frame(process_frame)
+        process_btn_frame.pack(fill="x", padx=10, pady=10)
         
-        ttk.Label(output_frame, text="Directorio de salida:").pack(anchor="w")
+        self.process_button = ttk.Button(process_btn_frame, text="🚀 Procesar Archivos Dump", 
+                                        command=self.start_processing, style="Action.TButton")
+        self.process_button.pack(side="left", padx=5)
         
-        output_entry_frame = ttk.Frame(output_frame)
-        output_entry_frame.pack(fill="x", pady=(5, 0))
+        ttk.Button(process_btn_frame, text="Cargar Dataset Existente", 
+                  command=self.load_existing_dataset).pack(side="left", padx=5)
         
-        ttk.Entry(output_entry_frame, textvariable=self.output_dir_var, 
-                 width=50).pack(side="left", fill="x", expand=True)
+        # Progreso
+        progress_frame = ttk.LabelFrame(process_frame, text="Progreso", padding="10")
+        progress_frame.pack(fill="both", expand=True, padx=10, pady=5)
         
-        ttk.Button(output_entry_frame, text="Cambiar...", 
-                  command=self.browse_output_directory).pack(side="right", padx=(5, 0))
-        
-        # Información
-        info_label = ttk.Label(input_frame, 
-                              text="Se procesarán todos los archivos *.dump, dump.*, *.dump.gz encontrados", 
-                              font=("Arial", 8), foreground="gray")
-        info_label.pack(anchor="w", pady=(5, 0))
-    
-    def create_configuration_section(self, parent):
-        """Sección de configuración de parámetros"""
-        config_frame = ttk.LabelFrame(parent, text="⚙️ Configuración de Procesamiento", padding="10")
-        config_frame.pack(fill="x", pady=(0, 10))
-        
-        # Frame principal con dos columnas
-        main_config_frame = ttk.Frame(config_frame)
-        main_config_frame.pack(fill="x")
-        
-        # Columna izquierda
-        left_config = ttk.Frame(main_config_frame)
-        left_config.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        
-        ttk.Label(left_config, text="Número total de átomos:").pack(anchor="w")
-        atm_spinbox = ttk.Spinbox(left_config, from_=1000, to=100000, 
-                                 textvariable=self.atm_total_var, width=15)
-        atm_spinbox.pack(anchor="w", pady=(2, 10))
-        
-        ttk.Label(left_config, text="Energía mínima (eV):").pack(anchor="w")
-        ttk.Entry(left_config, textvariable=self.energy_min_var, width=15).pack(anchor="w", pady=(2, 10))
-        
-        # Columna derecha
-        right_config = ttk.Frame(main_config_frame)
-        right_config.pack(side="right", fill="x", expand=True)
-        
-        ttk.Label(right_config, text="Energía máxima (eV):").pack(anchor="w")
-        ttk.Entry(right_config, textvariable=self.energy_max_var, width=15).pack(anchor="w", pady=(2, 10))
-        
-        ttk.Label(right_config, text="Bins de energía:").pack(anchor="w")
-        ttk.Spinbox(right_config, from_=5, to=50, 
-                   textvariable=self.energy_bins_var, width=15).pack(anchor="w", pady=(2, 10))
-        
-        # Botón aplicar configuración
-        ttk.Button(config_frame, text="Aplicar Configuración", 
-                  command=self.apply_configuration).pack(pady=(10, 0))
-        
-        # Información de seguridad
-        security_text = "🔒 SIN FUGA: No se incluyen n_atoms, vacancy_fraction ni features que revelen vacancias directamente"
-        ttk.Label(config_frame, text=security_text, font=("Arial", 8), 
-                 foreground="green", wraplength=400).pack(pady=(5, 0))
-    
-    def create_processing_section(self, parent):
-        """Sección de procesamiento y progreso"""
-        process_frame = ttk.LabelFrame(parent, text="🚀 Procesamiento", padding="10")
-        process_frame.pack(fill="both", expand=True, pady=(0, 10))
-        
-        # Botones de control
-        button_frame = ttk.Frame(process_frame)
-        button_frame.pack(fill="x", pady=(0, 10))
-        
-        self.start_button = ttk.Button(button_frame, text="Iniciar Procesamiento", 
-                                      command=self.start_processing)
-        self.start_button.pack(side="left")
-        
-        self.stop_button = ttk.Button(button_frame, text="Detener", 
-                                     command=self.stop_processing, state="disabled")
-        self.stop_button.pack(side="left", padx=(10, 0))
-        
-        ttk.Button(button_frame, text="Limpiar", 
-                  command=self.clear_results).pack(side="right")
-        
-        # Barra de progreso
-        progress_frame = ttk.Frame(process_frame)
-        progress_frame.pack(fill="x", pady=(0, 10))
-        
-        ttk.Label(progress_frame, text="Progreso:").pack(anchor="w")
-        
+        self.progress_var = tk.DoubleVar()
         self.progress_bar = ttk.Progressbar(progress_frame, variable=self.progress_var, 
-                                          maximum=100)
-        self.progress_bar.pack(fill="x", pady=(5, 0))
+                                           maximum=100, length=400)
+        self.progress_bar.pack(fill="x", pady=(0, 10))
         
-        # Estado
-        self.status_label = ttk.Label(process_frame, textvariable=self.status_var, 
-                                     font=("Arial", 9))
+        self.status_var = tk.StringVar(value="Listo para procesar")
+        self.status_label = ttk.Label(progress_frame, textvariable=self.status_var)
         self.status_label.pack(anchor="w")
         
-        # Área de log
-        log_frame = ttk.Frame(process_frame)
-        log_frame.pack(fill="both", expand=True, pady=(10, 0))
-        
-        ttk.Label(log_frame, text="Log de procesamiento:").pack(anchor="w")
-        
-        self.log_text = tk.Text(log_frame, height=8, wrap="word", font=("Courier", 9))
-        log_scrollbar = ttk.Scrollbar(log_frame, orient="vertical", command=self.log_text.yview)
-        self.log_text.configure(yscrollcommand=log_scrollbar.set)
-        
-        self.log_text.pack(side="left", fill="both", expand=True)
-        log_scrollbar.pack(side="right", fill="y")
+        # Log de procesamiento
+        self.process_log = tk.Text(progress_frame, height=10, wrap="word", font=("Courier", 9))
+        self.process_log.pack(fill="both", expand=True, pady=(10, 0))
     
-    def create_feature_selection_tab(self):
-        """Tab de selección de features"""
-        feature_frame = ttk.Frame(self.notebook)
-        self.notebook.add(feature_frame, text="🎯 Selección Features")
+    def create_features_tab(self):
+        """Crear pestaña de selección de features"""
+        features_frame = ttk.Frame(self.notebook)
+        self.notebook.add(features_frame, text="🎯 Selección de Features")
         
-        # Frame principal con tres paneles
-        main_feature_frame = ttk.Frame(feature_frame, padding="10")
-        main_feature_frame.pack(fill="both", expand=True)
+        # Info del dataset
+        info_frame = ttk.LabelFrame(features_frame, text="Información del Dataset", padding="10")
+        info_frame.pack(fill="x", padx=10, pady=5)
         
-        # Configurar grid
-        main_feature_frame.columnconfigure(1, weight=1)
-        main_feature_frame.rowconfigure(0, weight=1)
+        self.dataset_info_label = ttk.Label(info_frame, text="No hay dataset cargado", 
+                                           font=("Arial", 10))
+        self.dataset_info_label.pack(anchor="w")
         
-        # Panel izquierdo - Categorías
-        self.create_categories_panel(main_feature_frame)
+        # Tabla de features
+        table_frame = ttk.LabelFrame(features_frame, text="Features Disponibles", padding="10")
+        table_frame.pack(fill="both", expand=True, padx=10, pady=5)
         
-        # Panel central - Tabla de features
-        self.create_features_table(main_feature_frame)
+        # Botones de control
+        control_frame = ttk.Frame(table_frame)
+        control_frame.pack(fill="x", pady=(0, 10))
         
-        # Panel derecho - Estadísticas
-        self.create_statistics_panel(main_feature_frame)
+        ttk.Button(control_frame, text="Seleccionar Todo", 
+                  command=self.select_all_features).pack(side="left", padx=5)
+        ttk.Button(control_frame, text="Deseleccionar Todo", 
+                  command=self.deselect_all_features).pack(side="left", padx=5)
+        ttk.Button(control_frame, text="Auto-Seleccionar (Top 30)", 
+                  command=self.auto_select_features).pack(side="left", padx=5)
         
-        # Panel inferior - Controles
-        self.create_feature_controls(main_feature_frame)
-    
-    def create_categories_panel(self, parent):
-        """Panel de categorías de features"""
-        cat_frame = ttk.LabelFrame(parent, text="Categorías", padding="10")
-        cat_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(0, 5))
+        # Treeview para features
+        tree_container = ttk.Frame(table_frame)
+        tree_container.pack(fill="both", expand=True)
         
-        # Colores por categoría
-        self.colors = {
-            'coord': '#4CAF50',      # Verde
-            'pe': '#2196F3',         # Azul
-            'stress': '#FF9800',     # Naranja
-            'voro': '#9C27B0',       # Púrpura
-            'vacancy': '#F44336',    # Rojo
-            'other': '#607D8B'       # Gris
-        }
+        columns = ("Feature", "Tipo", "Correlación", "Importancia", "Seleccionado")
+        self.features_tree = ttk.Treeview(tree_container, columns=columns, show="headings", height=12)
         
-        # Botones de categorías
-        self.category_buttons = {}
-        categories = [
-            ("Coordinación", 'coord'),
-            ("Energía", 'pe'),
-            ("Stress", 'stress'),
-            ("Voronoi", 'voro'),
-            ("Vacancias", 'vacancy'),
-            ("Otros", 'other')
-        ]
-        
-        for i, (label, key) in enumerate(categories):
-            btn = ttk.Button(cat_frame, text=f"{label} (0/0)", 
-                           command=lambda k=key: self.toggle_category(k))
-            btn.grid(row=i, column=0, pady=2, sticky=(tk.W, tk.E))
-            self.category_buttons[key] = btn
-        
-        # Separador
-        ttk.Separator(cat_frame, orient='horizontal').grid(row=len(categories), 
-                                                          column=0, sticky=(tk.W, tk.E), pady=10)
-        
-        # Botones de selección rápida
-        ttk.Button(cat_frame, text="✓ Seleccionar todo", 
-                  command=self.select_all_features).grid(row=len(categories)+1, column=0, pady=2, 
-                                                        sticky=(tk.W, tk.E))
-        ttk.Button(cat_frame, text="✗ Deseleccionar todo", 
-                  command=self.deselect_all_features).grid(row=len(categories)+2, column=0, pady=2, 
-                                                          sticky=(tk.W, tk.E))
-    
-    def create_features_table(self, parent):
-        """Panel central con tabla de features"""
-        table_frame = ttk.LabelFrame(parent, text="Features Disponibles", padding="10")
-        table_frame.grid(row=0, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5)
-        table_frame.columnconfigure(0, weight=1)
-        table_frame.rowconfigure(0, weight=1)
-        
-        # Crear Treeview para la tabla
-        columns = ('selected', 'feature', 'category', 'type', 'missing', 'unique')
-        self.features_tree = ttk.Treeview(table_frame, columns=columns, show='headings', height=15)
-        
-        # Configurar encabezados
-        self.features_tree.heading('selected', text='✓')
-        self.features_tree.heading('feature', text='Feature')
-        self.features_tree.heading('category', text='Categoría')
-        self.features_tree.heading('type', text='Tipo')
-        self.features_tree.heading('missing', text='Faltantes')
-        self.features_tree.heading('unique', text='Únicos')
-        
-        # Configurar anchos
-        self.features_tree.column('selected', width=40, anchor='center')
-        self.features_tree.column('feature', width=200, anchor='w')
-        self.features_tree.column('category', width=100, anchor='center')
-        self.features_tree.column('type', width=80, anchor='center')
-        self.features_tree.column('missing', width=80, anchor='center')
-        self.features_tree.column('unique', width=80, anchor='center')
+        for col in columns:
+            self.features_tree.heading(col, text=col)
+            self.features_tree.column(col, width=150, anchor="center")
         
         # Scrollbars
-        v_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.features_tree.yview)
-        h_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal", command=self.features_tree.xview)
-        
+        v_scrollbar = ttk.Scrollbar(tree_container, orient="vertical", command=self.features_tree.yview)
+        h_scrollbar = ttk.Scrollbar(tree_container, orient="horizontal", command=self.features_tree.xview)
         self.features_tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
         
-        # Layout
-        self.features_tree.grid(row=0, column=0, sticky="nsew")
-        v_scrollbar.grid(row=0, column=1, sticky="ns")
-        h_scrollbar.grid(row=1, column=0, sticky="ew")
+        self.features_tree.pack(side="left", fill="both", expand=True)
+        v_scrollbar.pack(side="right", fill="y")
+        h_scrollbar.pack(side="bottom", fill="x")
         
         # Bind eventos
-        self.features_tree.bind('<Button-1>', self.on_tree_click)
-        self.features_tree.bind('<Double-1>', self.toggle_feature_selection)
+        self.features_tree.bind("<Double-1>", self.toggle_feature_selection)
+        
+        # Resumen de selección
+        summary_frame = ttk.LabelFrame(features_frame, text="Resumen de Selección", padding="10")
+        summary_frame.pack(fill="x", padx=10, pady=5)
+        
+        self.selection_summary_label = ttk.Label(summary_frame, text="0 features seleccionadas", 
+                                                font=("Arial", 10, "bold"))
+        self.selection_summary_label.pack(anchor="w")
     
-    def create_statistics_panel(self, parent):
-        """Panel de estadísticas"""
-        stats_frame = ttk.LabelFrame(parent, text="Estadísticas", padding="10")
-        stats_frame.grid(row=0, column=2, sticky=(tk.W, tk.E, tk.N, tk.S), padx=(5, 0))
+    def create_training_tab(self):
+        """Crear pestaña de entrenamiento ML"""
+        training_frame = ttk.Frame(self.notebook)
+        self.notebook.add(training_frame, text="🤖 Entrenamiento ML")
         
-        # Target selector
-        target_frame = ttk.Frame(stats_frame)
-        target_frame.pack(fill="x", pady=(0, 10))
+        # Configuración del modelo
+        model_config_frame = ttk.LabelFrame(training_frame, text="Configuración del Modelo", padding="10")
+        model_config_frame.pack(fill="x", padx=10, pady=5)
         
-        ttk.Label(target_frame, text="Target:").pack(anchor="w")
-        self.target_combo = ttk.Combobox(target_frame, state="readonly", width=20)
-        self.target_combo.pack(fill="x", pady=(2, 0))
-        self.target_combo.bind('<<ComboboxSelected>>', self.on_target_change)
+        ttk.Label(model_config_frame, text="Tamaño de prueba:").grid(row=0, column=0, sticky="w", padx=5, pady=2)
+        ttk.Entry(model_config_frame, textvariable=self.test_size_var, width=15).grid(row=0, column=1, padx=5, pady=2)
         
-        # Estadísticas
-        self.stats_text = tk.Text(stats_frame, width=30, height=20, wrap=tk.WORD, 
-                                 font=("Courier", 8))
-        stats_scroll = ttk.Scrollbar(stats_frame, orient="vertical", command=self.stats_text.yview)
-        self.stats_text.configure(yscrollcommand=stats_scroll.set)
+        ttk.Label(model_config_frame, text="Nº Estimadores:").grid(row=1, column=0, sticky="w", padx=5, pady=2)
+        ttk.Entry(model_config_frame, textvariable=self.n_estimators_var, width=15).grid(row=1, column=1, padx=5, pady=2)
         
-        self.stats_text.pack(side="left", fill="both", expand=True)
-        stats_scroll.pack(side="right", fill="y")
-    
-    def create_feature_controls(self, parent):
-        """Panel de controles para features"""
-        controls_frame = ttk.Frame(parent, padding="10")
-        controls_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(10, 0))
+        ttk.Label(model_config_frame, text="Random State:").grid(row=2, column=0, sticky="w", padx=5, pady=2)
+        ttk.Entry(model_config_frame, textvariable=self.random_state_var, width=15).grid(row=2, column=1, padx=5, pady=2)
         
-        # Contador de features
-        self.feature_counter_label = ttk.Label(controls_frame, text="Features seleccionadas: 0/0", 
-                                              font=('Arial', 11, 'bold'))
-        self.feature_counter_label.pack(side="left")
+        # Botones de entrenamiento
+        training_controls_frame = ttk.LabelFrame(training_frame, text="Control de Entrenamiento", padding="10")
+        training_controls_frame.pack(fill="x", padx=10, pady=5)
         
-        # Botones de configuración
-        ttk.Button(controls_frame, text="📥 Importar Config Features", 
-                  command=self.import_feature_config).pack(side="right", padx=5)
+        buttons_frame = ttk.Frame(training_controls_frame)
+        buttons_frame.pack(fill="x")
         
-        ttk.Button(controls_frame, text="🔄 Actualizar Tabla", 
-                  command=self.update_features_table).pack(side="right", padx=5)
+        self.train_button = ttk.Button(buttons_frame, text="🚀 Entrenar Modelo", 
+                                      command=self.start_training, style="Action.TButton")
+        self.train_button.pack(side="left", padx=5)
+        
+        self.stop_train_button = ttk.Button(buttons_frame, text="⏹️ Detener", 
+                                           command=self.stop_training, state="disabled")
+        self.stop_train_button.pack(side="left", padx=5)
+        
+        ttk.Button(buttons_frame, text="💾 Guardar Modelo", 
+                  command=self.save_model).pack(side="right", padx=5)
+        ttk.Button(buttons_frame, text="📁 Cargar Modelo", 
+                  command=self.load_model).pack(side="right", padx=5)
+        
+        # Progreso de entrenamiento
+        train_progress_frame = ttk.LabelFrame(training_frame, text="Progreso de Entrenamiento", padding="10")
+        train_progress_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        self.train_progress_var = tk.DoubleVar()
+        self.train_progress_bar = ttk.Progressbar(train_progress_frame, variable=self.train_progress_var, 
+                                                 maximum=100, length=400)
+        self.train_progress_bar.pack(fill="x", pady=(0, 10))
+        
+        self.train_status_var = tk.StringVar(value="Listo para entrenar")
+        self.train_status_label = ttk.Label(train_progress_frame, textvariable=self.train_status_var)
+        self.train_status_label.pack(anchor="w")
+        
+        # Log de entrenamiento
+        self.training_log = tk.Text(train_progress_frame, height=12, wrap="word", font=("Courier", 9))
+        self.training_log.pack(fill="both", expand=True, pady=(10, 0))
     
     def create_results_tab(self):
-        """Tab de resultados y exportación"""
+        """Crear pestaña de resultados"""
         results_frame = ttk.Frame(self.notebook)
         self.notebook.add(results_frame, text="📊 Resultados")
         
-        results_container = ttk.Frame(results_frame, padding="10")
-        results_container.pack(fill="both", expand=True)
+        # Métricas del modelo
+        metrics_frame = ttk.LabelFrame(results_frame, text="Métricas del Modelo", padding="10")
+        metrics_frame.pack(fill="x", padx=10, pady=5)
         
-        # Información de resultados
-        info_frame = ttk.LabelFrame(results_container, text="Información del Dataset", padding="10")
-        info_frame.pack(fill="x", pady=(0, 10))
+        self.metrics_text = tk.Text(metrics_frame, height=8, wrap="word", 
+                                   state="disabled", font=("Courier", 9))
+        self.metrics_text.pack(fill="both", expand=True)
         
-        self.results_info_text = tk.Text(info_frame, height=12, wrap="word", 
-                                        state="disabled", font=("Courier", 9))
+        # Botones de acción
+        actions_frame = ttk.LabelFrame(results_frame, text="Acciones", padding="10")
+        actions_frame.pack(fill="x", padx=10, pady=5)
         
-        results_scrollbar = ttk.Scrollbar(info_frame, orient="vertical", 
-                                        command=self.results_info_text.yview)
-        self.results_info_text.configure(yscrollcommand=results_scrollbar.set)
+        action_buttons = ttk.Frame(actions_frame)
+        action_buttons.pack(fill="x")
         
-        self.results_info_text.pack(side="left", fill="both", expand=True)
+        ttk.Button(action_buttons, text="📈 Ver Gráficos", 
+                  command=self.show_plots).pack(side="left", padx=5)
+        ttk.Button(action_buttons, text="📋 Feature Importance", 
+                  command=self.show_feature_importance).pack(side="left", padx=5)
+        ttk.Button(action_buttons, text="🔮 Hacer Predicción", 
+                  command=self.make_prediction).pack(side="left", padx=5)
+        
+        # Resultados detallados
+        detailed_frame = ttk.LabelFrame(results_frame, text="Resultados Detallados", padding="10")
+        detailed_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        
+        self.results_text = tk.Text(detailed_frame, height=12, wrap="word", 
+                                   state="disabled", font=("Courier", 9))
+        
+        results_scrollbar = ttk.Scrollbar(detailed_frame, orient="vertical", 
+                                        command=self.results_text.yview)
+        self.results_text.configure(yscrollcommand=results_scrollbar.set)
+        
+        self.results_text.pack(side="left", fill="both", expand=True)
         results_scrollbar.pack(side="right", fill="y")
-        
-        # Botones de exportación y ML
-        export_frame = ttk.LabelFrame(results_container, text="Acciones", padding="10")
-        export_frame.pack(fill="x")
-        
-        button_container = ttk.Frame(export_frame)
-        button_container.pack()
-        
-        ttk.Button(button_container, text="💾 Exportar CSV Completo",
-                  command=self.export_full_dataset).pack(side="left", padx=5)
-        
-        ttk.Button(button_container, text="🎯 Exportar Features Seleccionadas", 
-                  command=self.export_selected_features).pack(side="left", padx=5)
-        
-        ttk.Button(button_container, text="🤖 Cargar en Advanced ML", 
-                  command=self.load_to_advanced_ml).pack(side="left", padx=5)
-        
-        ttk.Button(button_container, text="📋 Exportar Config Features", 
-                  command=self.export_feature_config).pack(side="left", padx=5)
     
-    # =====================================================================
-    # MÉTODOS DE PROCESAMIENTO
-    # =====================================================================
-    
+    # Métodos de procesamiento
     def browse_directory(self):
         """Seleccionar directorio con archivos .dump"""
         directory = filedialog.askdirectory(title="Seleccionar directorio con archivos .dump")
@@ -424,770 +301,840 @@ class BatchProcessingTab:
                 dump_files = self.processor.find_dump_files(directory)
                 message = f"Directorio seleccionado: {len(dump_files)} archivos .dump encontrados"
                 self.update_status(message)
-                self.log_message(message)
             except Exception as e:
                 logger.error(f"Error explorando directorio: {e}")
-                self.log_message(f"Error: {e}")
     
     def browse_output_directory(self):
         """Seleccionar directorio de salida"""
         directory = filedialog.askdirectory(title="Seleccionar directorio de salida")
         if directory:
             self.output_dir_var.set(directory)
-            self.log_message(f"Directorio de salida cambiado: {directory}")
-    
-    def apply_configuration(self):
-        """Aplicar configuración al procesador"""
-        try:
-            self.processor.set_parameters(
-                atm_total=self.atm_total_var.get(),
-                energy_min=self.energy_min_var.get(),
-                energy_max=self.energy_max_var.get(),
-                energy_bins=self.energy_bins_var.get()
-            )
-            message = "Configuración aplicada correctamente"
-            self.update_status(message)
-            self.log_message(message)
-        except Exception as e:
-            messagebox.showerror("Error", f"Error en configuración: {str(e)}")
-            self.log_message(f"Error en configuración: {e}")
     
     def start_processing(self):
-        """Iniciar procesamiento en thread separado"""
+        """Iniciar procesamiento de archivos dump"""
+        if self.is_processing:
+            return
+        
         if not self.directory_var.get():
-            messagebox.showwarning("Advertencia", "Por favor selecciona un directorio primero")
+            messagebox.showwarning("Advertencia", "Seleccione un directorio con archivos .dump")
             return
         
-        if self.processing:
-            messagebox.showwarning("Advertencia", "Ya hay un procesamiento en curso")
-            return
+        # Configurar procesador
+        self.processor.set_parameters(
+            atm_total=self.atm_total_var.get(),
+            energy_min=self.energy_min_var.get(),
+            energy_max=self.energy_max_var.get(),
+            energy_bins=self.energy_bins_var.get()
+        )
         
-        # Aplicar configuración
-        self.apply_configuration()
+        # Iniciar procesamiento en hilo separado
+        self.is_processing = True
+        self.process_button.config(state="disabled")
         
-        # Cambiar estado
-        self.start_button.config(state="disabled")
-        self.stop_button.config(state="normal")
-        self.processing = True
-        
-        # Limpiar resultados previos
-        self.current_dataset = None
-        self.log_message("=== INICIANDO PROCESAMIENTO SIN FUGA ===")
-        
-        # Iniciar thread
-        self.processing_thread = threading.Thread(target=self._process_files, daemon=True)
-        self.processing_thread.start()
+        thread = threading.Thread(target=self._processing_worker, daemon=True)
+        thread.start()
     
-    def _process_files(self):
-        """Procesamiento en thread separado"""
+    def _processing_worker(self):
+        """Worker para procesamiento de archivos"""
         try:
-            directory = self.directory_var.get()
+            self.log_process("Iniciando procesamiento de archivos dump...")
             
-            self.update_status("Procesando archivos SIN FUGA...")
-            dataset = self.processor.process_directory(directory)
-            
-            if not self.processing:  # Verificar si se canceló
-                return
+            # Procesar directorio
+            dataset = self.processor.process_directory(self.directory_var.get())
             
             # Guardar dataset
             output_dir = Path(self.output_dir_var.get())
-            output_dir.mkdir(parents=True, exist_ok=True)
+            output_dir.mkdir(exist_ok=True)
             
-            csv_path = output_dir / "dataset.csv"
+            csv_path = output_dir / "batch_dataset.csv"
             dataset.to_csv(csv_path)
             
-            # Generar resumen
-            summary = self.processor.get_feature_summary(dataset)
-            
-            # Actualizar interfaz
-            self.frame.after(0, self._processing_completed, dataset, summary, csv_path)
+            # Actualizar UI
+            self.current_dataset = dataset
+            self.frame.after(0, self._update_after_processing, dataset, csv_path)
             
         except Exception as e:
-            error_msg = f"Error durante procesamiento: {str(e)}"
-            logger.error(error_msg)
-            self.frame.after(0, self._processing_failed, error_msg)
+            self.frame.after(0, self._handle_processing_error, str(e))
+        finally:
+            self.frame.after(0, self._reset_processing_state)
     
-    def _processing_completed(self, dataset, summary, csv_path):
-        """Callback cuando se completa el procesamiento"""
-        self.current_dataset = dataset
+    def _update_after_processing(self, dataset, csv_path):
+        """Actualizar UI después del procesamiento"""
+        self.log_process(f"Procesamiento completado: {csv_path}")
+        self.update_dataset_info(dataset)
+        self.update_features_table(dataset)
         
-        # Resetear controles
-        self._reset_processing_controls()
-        
-        # Actualizar tabla de features
-        self.populate_features_table()
-        
-        # Cambiar al tab de selección de features
+        # Cambiar a tab de features
         self.notebook.select(1)
         
-        # Actualizar resultados
-        results_text = self.format_processing_results(summary, csv_path)
-        self.update_results_display(results_text)
-        
-        self.update_status(f"Procesamiento completado: {len(dataset)} archivos procesados")
-        self.log_message(f"=== PROCESAMIENTO COMPLETADO: {len(dataset)} archivos ===")
-        
-        messagebox.showinfo("Éxito", 
-                           f"Dataset generado exitosamente!\n\n"
-                           f"Archivos: {len(dataset)}\n"
-                           f"Features: {summary['total_features']}\n"
-                           f"Cambie al tab 'Selección Features' para continuar")
+        # Notificar callback
+        self.data_loaded_callback(dataset)
     
-    def _processing_failed(self, error_msg):
-        """Callback cuando falla el procesamiento"""
-        self._reset_processing_controls()
-        self.update_status("Procesamiento fallido")
-        self.log_message(f"ERROR: {error_msg}")
-        messagebox.showerror("Error", error_msg)
+    def _handle_processing_error(self, error_msg):
+        """Manejar errores de procesamiento"""
+        self.log_process(f"ERROR: {error_msg}")
+        messagebox.showerror("Error", f"Error en procesamiento: {error_msg}")
     
-    def _reset_processing_controls(self):
-        """Resetear controles de procesamiento"""
-        self.processing = False
-        self.start_button.config(state="normal")
-        self.stop_button.config(state="disabled")
+    def _reset_processing_state(self):
+        """Resetear estado de procesamiento"""
+        self.is_processing = False
+        self.process_button.config(state="normal")
         self.progress_var.set(0)
+        self.status_var.set("Listo para procesar")
     
-    def stop_processing(self):
-        """Detener procesamiento"""
-        if self.processing:
-            self.processing = False
-            self.update_status("Deteniendo procesamiento...")
-            self.log_message("Procesamiento detenido por usuario")
-            self._reset_processing_controls()
+    def load_existing_dataset(self):
+        """Cargar dataset existente"""
+        file_path = filedialog.askopenfilename(
+            title="Cargar Dataset",
+            filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx")]
+        )
+        
+        if file_path:
+            try:
+                if file_path.endswith('.xlsx'):
+                    dataset = pd.read_excel(file_path, index_col=0)
+                else:
+                    dataset = pd.read_csv(file_path, index_col=0)
+                
+                self.current_dataset = dataset
+                self.update_dataset_info(dataset)
+                self.update_features_table(dataset)
+                
+                # Cambiar a tab de features
+                self.notebook.select(1)
+                
+                # Notificar callback
+                self.data_loaded_callback(dataset)
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Error cargando dataset: {str(e)}")
     
-    def clear_results(self):
-        """Limpiar resultados"""
-        self.current_dataset = None
+    # Métodos de selección de features
+    def update_dataset_info(self, dataset):
+        """Actualizar información del dataset"""
+        if dataset is not None:
+            info = f"Dataset: {len(dataset)} muestras, {len(dataset.columns)} columnas"
+            if 'vacancies' in dataset.columns:
+                vac_stats = dataset['vacancies'].describe()
+                info += f" | Vacancies: {vac_stats['min']:.0f}-{vac_stats['max']:.0f} (mean: {vac_stats['mean']:.1f})"
+            self.dataset_info_label.config(text=info)
+    
+    def update_features_table(self, dataset):
+        """Actualizar tabla de features"""
+        # Limpiar tabla
+        for item in self.features_tree.get_children():
+            self.features_tree.delete(item)
+        
+        if dataset is None:
+            return
+        
+        # Excluir columnas metadata
+        exclude_cols = ['file_path', 'vacancies']
+        feature_cols = [col for col in dataset.columns if col not in exclude_cols]
+        
+        # Calcular correlaciones con target si existe
+        correlations = {}
+        if 'vacancies' in dataset.columns:
+            for col in feature_cols:
+                try:
+                    corr = dataset[col].corr(dataset['vacancies'])
+                    correlations[col] = corr if not pd.isna(corr) else 0.0
+                except:
+                    correlations[col] = 0.0
+        
+        # Llenar tabla
+        for col in feature_cols:
+            corr = correlations.get(col, 0.0)
+            dtype = str(dataset[col].dtype)
+            
+            # Determinar tipo simplificado
+            if 'float' in dtype or 'int' in dtype:
+                type_simple = "Numérico"
+            else:
+                type_simple = "Categórico"
+            
+            # Insertar en tabla
+            self.features_tree.insert('', 'end', values=(
+                col,
+                type_simple,
+                f"{abs(corr):.3f}",
+                "TBD",  # Importancia se calculará después del entrenamiento
+                "No"
+            ))
+        
+        self.update_selection_summary()
+    
+    def toggle_feature_selection(self, event):
+        """Alternar selección de feature con doble click"""
+        item = self.features_tree.selection()[0]
+        feature_name = self.features_tree.item(item, 'values')[0]
+        
+        if feature_name in self.selected_features:
+            self.selected_features.remove(feature_name)
+            self.features_tree.item(item, values=(
+                *self.features_tree.item(item, 'values')[:4], "No"
+            ))
+        else:
+            self.selected_features.add(feature_name)
+            self.features_tree.item(item, values=(
+                *self.features_tree.item(item, 'values')[:4], "Sí"
+            ))
+        
+        self.update_selection_summary()
+    
+    def select_all_features(self):
+        """Seleccionar todas las features"""
         self.selected_features.clear()
-        self.feature_vars.clear()
-        self.progress_var.set(0)
-        self.update_status("Resultados limpiados")
-        self.log_text.delete(1.0, tk.END)
-        
-        # Limpiar tabla de features
-        if hasattr(self, 'features_tree'):
-            for item in self.features_tree.get_children():
-                self.features_tree.delete(item)
-        
-        # Limpiar estadísticas
-        if hasattr(self, 'stats_text'):
-            self.stats_text.delete(1.0, tk.END)
-            self.stats_text.insert(tk.END, "Procese archivos para ver estadísticas")
-        
-        # Limpiar resultados
-        if hasattr(self, 'results_info_text'):
-            self.update_results_display("Resultados limpiados")
+        for item in self.features_tree.get_children():
+            feature_name = self.features_tree.item(item, 'values')[0]
+            self.selected_features.add(feature_name)
+            self.features_tree.item(item, values=(
+                *self.features_tree.item(item, 'values')[:4], "Sí"
+            ))
+        self.update_selection_summary()
     
+    def deselect_all_features(self):
+        """Deseleccionar todas las features"""
+        self.selected_features.clear()
+        for item in self.features_tree.get_children():
+            self.features_tree.item(item, values=(
+                *self.features_tree.item(item, 'values')[:4], "No"
+            ))
+        self.update_selection_summary()
+    
+    def auto_select_features(self):
+        """Auto-seleccionar top features por correlación"""
+        if self.current_dataset is None or 'vacancies' not in self.current_dataset.columns:
+            messagebox.showwarning("Advertencia", "No hay dataset con target para auto-selección")
+            return
+        
+        # Calcular correlaciones
+        exclude_cols = ['file_path', 'vacancies']
+        feature_cols = [col for col in self.current_dataset.columns if col not in exclude_cols]
+        
+        correlations = []
+        for col in feature_cols:
+            try:
+                corr = abs(self.current_dataset[col].corr(self.current_dataset['vacancies']))
+                if not pd.isna(corr):
+                    correlations.append((col, corr))
+            except:
+                pass
+        
+        # Seleccionar top 30
+        correlations.sort(key=lambda x: x[1], reverse=True)
+        top_features = [feat for feat, _ in correlations[:30]]
+        
+        # Actualizar selección
+        self.selected_features.clear()
+        self.selected_features.update(top_features)
+        
+        # Actualizar tabla
+        for item in self.features_tree.get_children():
+            feature_name = self.features_tree.item(item, 'values')[0]
+            selected = "Sí" if feature_name in self.selected_features else "No"
+            self.features_tree.item(item, values=(
+                *self.features_tree.item(item, 'values')[:4], selected
+            ))
+        
+        self.update_selection_summary()
+        messagebox.showinfo("Auto-selección", f"Seleccionadas {len(top_features)} features por correlación")
+    
+    def update_selection_summary(self):
+        """Actualizar resumen de selección"""
+        count = len(self.selected_features)
+        self.selection_summary_label.config(text=f"{count} features seleccionadas")
+    
+    # Métodos de entrenamiento
+    def start_training(self):
+        """Iniciar entrenamiento del modelo"""
+        if self.is_training:
+            return
+        
+        if self.current_dataset is None:
+            messagebox.showwarning("Advertencia", "No hay dataset cargado")
+            return
+        
+        if not self.selected_features:
+            messagebox.showwarning("Advertencia", "Seleccione features para entrenar")
+            return
+        
+        if 'vacancies' not in self.current_dataset.columns:
+            messagebox.showerror("Error", "No se encontró columna 'vacancies' como target")
+            return
+        
+        # Iniciar entrenamiento en hilo separado
+        self.is_training = True
+        self.train_button.config(state="disabled")
+        self.stop_train_button.config(state="normal")
+        
+        thread = threading.Thread(target=self._training_worker, daemon=True)
+        thread.start()
+        
+        # Cambiar a tab de entrenamiento
+        self.notebook.select(2)
+    
+    def _training_worker(self):
+        """Worker para entrenamiento del modelo"""
+        try:
+            self.log_training("Iniciando entrenamiento...")
+            
+            # Preparar datos
+            X = self.current_dataset[list(self.selected_features)]
+            y = self.current_dataset['vacancies']
+            
+            self.log_training(f"Features: {len(self.selected_features)}, Muestras: {len(X)}")
+            
+            # Dividir datos
+            from sklearn.model_selection import train_test_split
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=self.test_size_var.get(), 
+                random_state=self.random_state_var.get()
+            )
+            
+            self.frame.after(0, self._update_train_progress, 20, "Dividiendo datos...")
+            
+            # Entrenar modelo
+            from sklearn.ensemble import RandomForestRegressor
+            from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+            
+            self.frame.after(0, self._update_train_progress, 40, "Entrenando Random Forest...")
+            
+            model = RandomForestRegressor(
+                n_estimators=self.n_estimators_var.get(),
+                random_state=self.random_state_var.get(),
+                n_jobs=-1
+            )
+            
+            model.fit(X_train, y_train)
+            
+            self.frame.after(0, self._update_train_progress, 70, "Evaluando modelo...")
+            
+            # Hacer predicciones
+            train_pred = model.predict(X_train)
+            test_pred = model.predict(X_test)
+            
+            # Calcular métricas
+            train_mae = mean_absolute_error(y_train, train_pred)
+            test_mae = mean_absolute_error(y_test, test_pred)
+            train_rmse = np.sqrt(mean_squared_error(y_train, train_pred))
+            test_rmse = np.sqrt(mean_squared_error(y_test, test_pred))
+            train_r2 = r2_score(y_train, train_pred)
+            test_r2 = r2_score(y_test, test_pred)
+            
+            # Feature importance
+            feature_importance = pd.DataFrame({
+                'feature': list(self.selected_features),
+                'importance': model.feature_importances_
+            }).sort_values('importance', ascending=False)
+            
+            # Almacenar resultados
+            results = {
+                'model': model,
+                'feature_importance': feature_importance,
+                'metrics': {
+                    'train_mae': train_mae,
+                    'test_mae': test_mae,
+                    'train_rmse': train_rmse,
+                    'test_rmse': test_rmse,
+                    'train_r2': train_r2,
+                    'test_r2': test_r2,
+                    'n_features': len(self.selected_features),
+                    'n_train': len(X_train),
+                    'n_test': len(X_test)
+                },
+                'test_data': {
+                    'X_test': X_test,
+                    'y_test': y_test,
+                    'predictions': test_pred
+                }
+            }
+            
+            self.frame.after(0, self._update_after_training, results)
+            
+        except Exception as e:
+            self.frame.after(0, self._handle_training_error, str(e))
+        finally:
+            self.frame.after(0, self._reset_training_state)
+    
+    def _update_train_progress(self, value, message):
+        """Actualizar progreso de entrenamiento"""
+        self.train_progress_var.set(value)
+        self.train_status_var.set(message)
+    
+    def _update_after_training(self, results):
+        """Actualizar UI después del entrenamiento"""
+        self.trained_model = results
+        
+        # Actualizar métricas
+        metrics = results['metrics']
+        metrics_text = f"""RESULTADOS DEL ENTRENAMIENTO
+==============================
+
+CONFIGURACIÓN:
+  Algoritmo: Random Forest
+  N° Estimadores: {self.n_estimators_var.get()}
+  Features utilizadas: {metrics['n_features']}
+  Muestras entrenamiento: {metrics['n_train']}
+  Muestras prueba: {metrics['n_test']}
+
+MÉTRICAS DE RENDIMIENTO:
+  Train MAE:  {metrics['train_mae']:.3f}
+  Test MAE:   {metrics['test_mae']:.3f}
+  Train RMSE: {metrics['train_rmse']:.3f}
+  Test RMSE:  {metrics['test_rmse']:.3f}
+  Train R²:   {metrics['train_r2']:.3f}
+  Test R²:    {metrics['test_r2']:.3f}
+
+TOP 10 FEATURES MÁS IMPORTANTES:
+"""
+        
+        for i, row in results['feature_importance'].head(10).iterrows():
+            metrics_text += f"  {row['feature'][:40]:40s}: {row['importance']:.4f}\n"
+        
+        # Actualizar feature importance en tabla
+        self._update_feature_importance_in_table(results['feature_importance'])
+        
+        # Mostrar métricas
+        self.metrics_text.config(state='normal')
+        self.metrics_text.delete(1.0, tk.END)
+        self.metrics_text.insert(1.0, metrics_text)
+        self.metrics_text.config(state='disabled')
+        
+        # Log de entrenamiento
+        self.log_training("Entrenamiento completado exitosamente!")
+        self.log_training(f"Test R²: {metrics['test_r2']:.3f}, Test MAE: {metrics['test_mae']:.3f}")
+        
+        # Cambiar a tab de resultados
+        self.notebook.select(3)
+    
+    def _update_feature_importance_in_table(self, feature_importance):
+        """Actualizar importancia en tabla de features"""
+        importance_dict = dict(zip(feature_importance['feature'], feature_importance['importance']))
+        
+        for item in self.features_tree.get_children():
+            values = list(self.features_tree.item(item, 'values'))
+            feature_name = values[0]
+            
+            if feature_name in importance_dict:
+                values[3] = f"{importance_dict[feature_name]:.4f}"
+            else:
+                values[3] = "0.0000"
+            
+            self.features_tree.item(item, values=values)
+    
+    def _handle_training_error(self, error_msg):
+        """Manejar errores de entrenamiento"""
+        self.log_training(f"ERROR: {error_msg}")
+        messagebox.showerror("Error", f"Error en entrenamiento: {error_msg}")
+    
+    def _reset_training_state(self):
+        """Resetear estado de entrenamiento"""
+        self.is_training = False
+        self.train_button.config(state="normal")
+        self.stop_train_button.config(state="disabled")
+        self.train_progress_var.set(0)
+        self.train_status_var.set("Listo para entrenar")
+    
+    def stop_training(self):
+        """Detener entrenamiento"""
+        self.is_training = False
+        self.log_training("Deteniendo entrenamiento...")
+    
+    # Métodos de persistencia
+    def save_model(self):
+        """Guardar modelo entrenado"""
+        if self.trained_model is None:
+            messagebox.showwarning("Advertencia", "No hay modelo entrenado para guardar")
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            title="Guardar Modelo",
+            defaultextension=".joblib",
+            filetypes=[("Joblib files", "*.joblib"), ("Pickle files", "*.pkl")]
+        )
+        
+        if file_path:
+            try:
+                import joblib
+                
+                # Crear paquete completo del modelo
+                model_package = {
+                    'model': self.trained_model['model'],
+                    'selected_features': list(self.selected_features),
+                    'feature_importance': self.trained_model['feature_importance'],
+                    'metrics': self.trained_model['metrics'],
+                    'training_config': {
+                        'atm_total': self.atm_total_var.get(),
+                        'energy_min': self.energy_min_var.get(),
+                        'energy_max': self.energy_max_var.get(),
+                        'energy_bins': self.energy_bins_var.get(),
+                        'test_size': self.test_size_var.get(),
+                        'n_estimators': self.n_estimators_var.get(),
+                        'random_state': self.random_state_var.get()
+                    }
+                }
+                
+                joblib.dump(model_package, file_path)
+                messagebox.showinfo("Éxito", f"Modelo guardado en: {file_path}")
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Error guardando modelo: {str(e)}")
+    
+    def load_model(self):
+        """Cargar modelo previamente entrenado"""
+        file_path = filedialog.askopenfilename(
+            title="Cargar Modelo",
+            filetypes=[("Joblib files", "*.joblib"), ("Pickle files", "*.pkl")]
+        )
+        
+        if file_path:
+            try:
+                import joblib
+                
+                model_package = joblib.load(file_path)
+                
+                if isinstance(model_package, dict) and 'model' in model_package:
+                    # Restaurar configuración
+                    if 'training_config' in model_package:
+                        config = model_package['training_config']
+                        self.atm_total_var.set(config.get('atm_total', 16384))
+                        self.energy_min_var.set(config.get('energy_min', -4.0))
+                        self.energy_max_var.set(config.get('energy_max', -3.0))
+                        self.energy_bins_var.set(config.get('energy_bins', 10))
+                        self.test_size_var.set(config.get('test_size', 0.2))
+                        self.n_estimators_var.set(config.get('n_estimators', 100))
+                        self.random_state_var.set(config.get('random_state', 42))
+                    
+                    # Restaurar selección de features
+                    if 'selected_features' in model_package:
+                        self.selected_features = set(model_package['selected_features'])
+                        self.update_selection_summary()
+                    
+                    # Restaurar modelo
+                    self.trained_model = {
+                        'model': model_package['model'],
+                        'feature_importance': model_package.get('feature_importance'),
+                        'metrics': model_package.get('metrics', {}),
+                        'test_data': None  # No restauramos datos de test
+                    }
+                    
+                    messagebox.showinfo("Éxito", f"Modelo cargado desde: {file_path}")
+                    
+                    # Actualizar métricas si están disponibles
+                    if 'metrics' in model_package:
+                        self._show_loaded_model_info(model_package['metrics'])
+                
+                else:
+                    messagebox.showwarning("Advertencia", "Formato de modelo no reconocido")
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Error cargando modelo: {str(e)}")
+    
+    def _show_loaded_model_info(self, metrics):
+        """Mostrar información del modelo cargado"""
+        info_text = f"""MODELO CARGADO
+===============
+
+CONFIGURACIÓN:
+  Features: {metrics.get('n_features', 'N/A')}
+  Muestras entrenamiento: {metrics.get('n_train', 'N/A')}
+  Muestras prueba: {metrics.get('n_test', 'N/A')}
+
+MÉTRICAS GUARDADAS:
+  Test R²: {metrics.get('test_r2', 'N/A'):.3f}
+  Test MAE: {metrics.get('test_mae', 'N/A'):.3f}
+  Test RMSE: {metrics.get('test_rmse', 'N/A'):.3f}
+
+El modelo está listo para hacer predicciones.
+"""
+        
+        self.metrics_text.config(state='normal')
+        self.metrics_text.delete(1.0, tk.END)
+        self.metrics_text.insert(1.0, info_text)
+        self.metrics_text.config(state='disabled')
+    
+    # Métodos de visualización y análisis
+    def show_plots(self):
+        """Mostrar gráficos de resultados"""
+        if self.trained_model is None or 'test_data' not in self.trained_model:
+            messagebox.showwarning("Advertencia", "No hay datos de test para graficar")
+            return
+        
+        try:
+            import matplotlib.pyplot as plt
+            
+            test_data = self.trained_model['test_data']
+            y_true = test_data['y_test']
+            y_pred = test_data['predictions']
+            
+            fig, axes = plt.subplots(2, 2, figsize=(12, 8))
+            fig.suptitle('Resultados del Modelo Random Forest', fontsize=16)
+            
+            # 1. Predicciones vs Reales
+            axes[0, 0].scatter(y_true, y_pred, alpha=0.6)
+            axes[0, 0].plot([y_true.min(), y_true.max()], [y_true.min(), y_true.max()], 'r--', lw=2)
+            axes[0, 0].set_xlabel('Valores Reales')
+            axes[0, 0].set_ylabel('Predicciones')
+            axes[0, 0].set_title('Predicciones vs Reales')
+            
+            # 2. Residuos
+            residuals = y_true - y_pred
+            axes[0, 1].scatter(y_pred, residuals, alpha=0.6)
+            axes[0, 1].axhline(y=0, color='r', linestyle='--')
+            axes[0, 1].set_xlabel('Predicciones')
+            axes[0, 1].set_ylabel('Residuos')
+            axes[0, 1].set_title('Gráfico de Residuos')
+            
+            # 3. Distribución de residuos
+            axes[1, 0].hist(residuals, bins=20, alpha=0.7, edgecolor='black')
+            axes[1, 0].axvline(x=0, color='r', linestyle='--')
+            axes[1, 0].set_xlabel('Residuos')
+            axes[1, 0].set_ylabel('Frecuencia')
+            axes[1, 0].set_title('Distribución de Residuos')
+            
+            # 4. Feature Importance Top 10
+            if 'feature_importance' in self.trained_model:
+                top_features = self.trained_model['feature_importance'].head(10)
+                y_pos = np.arange(len(top_features))
+                axes[1, 1].barh(y_pos, top_features['importance'])
+                axes[1, 1].set_yticks(y_pos)
+                axes[1, 1].set_yticklabels(top_features['feature'])
+                axes[1, 1].set_xlabel('Importancia')
+                axes[1, 1].set_title('Top 10 Feature Importance')
+                axes[1, 1].invert_yaxis()
+            
+            plt.tight_layout()
+            plt.show()
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error mostrando gráficos: {str(e)}")
+    
+    def show_feature_importance(self):
+        """Mostrar feature importance detallada"""
+        if self.trained_model is None or 'feature_importance' not in self.trained_model:
+            messagebox.showwarning("Advertencia", "No hay feature importance disponible")
+            return
+        
+        try:
+            # Crear ventana de feature importance
+            importance_window = tk.Toplevel(self.frame)
+            importance_window.title("Feature Importance Detallada")
+            importance_window.geometry("800x600")
+            
+            # Crear treeview
+            tree_frame = ttk.Frame(importance_window)
+            tree_frame.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            columns = ("Rank", "Feature", "Importancia", "% Acumulado")
+            tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=20)
+            
+            for col in columns:
+                tree.heading(col, text=col)
+                tree.column(col, width=150, anchor="center")
+            
+            # Scrollbar
+            scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=tree.yview)
+            tree.configure(yscrollcommand=scrollbar.set)
+            
+            tree.pack(side="left", fill="both", expand=True)
+            scrollbar.pack(side="right", fill="y")
+            
+            # Llenar datos
+            feature_importance = self.trained_model['feature_importance']
+            cumulative = 0
+            total_importance = feature_importance['importance'].sum()
+            
+            for i, (_, row) in enumerate(feature_importance.iterrows()):
+                cumulative += row['importance']
+                percentage = (cumulative / total_importance) * 100
+                
+                tree.insert('', 'end', values=(
+                    i + 1,
+                    row['feature'],
+                    f"{row['importance']:.6f}",
+                    f"{percentage:.1f}%"
+                ))
+            
+            # Botón de exportar
+            export_btn = ttk.Button(importance_window, text="Exportar CSV",
+                                   command=lambda: self._export_feature_importance())
+            export_btn.pack(pady=10)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error mostrando feature importance: {str(e)}")
+    
+    def _export_feature_importance(self):
+        """Exportar feature importance a CSV"""
+        if self.trained_model is None or 'feature_importance' not in self.trained_model:
+            return
+        
+        file_path = filedialog.asksaveasfilename(
+            title="Exportar Feature Importance",
+            defaultextension=".csv",
+            filetypes=[("CSV files", "*.csv")]
+        )
+        
+        if file_path:
+            try:
+                self.trained_model['feature_importance'].to_csv(file_path, index=False)
+                messagebox.showinfo("Éxito", f"Feature importance exportada a: {file_path}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Error exportando: {str(e)}")
+    
+    def make_prediction(self):
+        """Hacer predicción interactiva"""
+        if self.trained_model is None:
+            messagebox.showwarning("Advertencia", "No hay modelo entrenado")
+            return
+        
+        # Crear ventana de predicción
+        pred_window = tk.Toplevel(self.frame)
+        pred_window.title("Hacer Predicción")
+        pred_window.geometry("600x400")
+        
+        # Instrucciones
+        ttk.Label(pred_window, text="Ingrese valores para las features seleccionadas:",
+                 font=("Arial", 12, "bold")).pack(pady=10)
+        
+        # Frame para inputs
+        inputs_frame = ttk.Frame(pred_window)
+        inputs_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        
+        # Variables para inputs
+        input_vars = {}
+        
+        # Crear inputs para cada feature seleccionada (máximo 20)
+        features_to_show = list(self.selected_features)[:20]
+        
+        for i, feature in enumerate(features_to_show):
+            row = i // 2
+            col = (i % 2) * 3
+            
+            # Obtener valor promedio como sugerencia
+            if self.current_dataset is not None and feature in self.current_dataset.columns:
+                avg_value = self.current_dataset[feature].mean()
+                suggestion = f" (avg: {avg_value:.3f})"
+            else:
+                avg_value = 0.0
+                suggestion = ""
+            
+            ttk.Label(inputs_frame, text=f"{feature}{suggestion}:").grid(
+                row=row, column=col, sticky="w", padx=5, pady=2)
+            
+            var = tk.DoubleVar(value=avg_value)
+            input_vars[feature] = var
+            
+            ttk.Entry(inputs_frame, textvariable=var, width=15).grid(
+                row=row, column=col+1, padx=5, pady=2)
+        
+        if len(self.selected_features) > 20:
+            ttk.Label(inputs_frame, text=f"... y {len(self.selected_features) - 20} features más",
+                     font=("Arial", 9, "italic")).grid(row=row+1, column=0, columnspan=6, pady=5)
+        
+        # Botón de predicción
+        def predict():
+            try:
+                # Crear vector de features
+                feature_vector = []
+                for feature in self.selected_features:
+                    if feature in input_vars:
+                        value = input_vars[feature].get()
+                    else:
+                        # Usar valor promedio para features no mostradas
+                        value = self.current_dataset[feature].mean() if self.current_dataset is not None else 0.0
+                    feature_vector.append(value)
+                
+                # Hacer predicción
+                X_pred = np.array(feature_vector).reshape(1, -1)
+                prediction = self.trained_model['model'].predict(X_pred)[0]
+                
+                messagebox.showinfo("Predicción", 
+                                   f"Vacancies predichas: {prediction:.2f}\n\n"
+                                   f"(Redondeado: {round(prediction)} vacancies)")
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Error en predicción: {str(e)}")
+        
+        ttk.Button(pred_window, text="🔮 Predecir", command=predict,
+                  style="Action.TButton").pack(pady=20)
+    
+    # Métodos auxiliares
     def update_progress(self, current, total, message=""):
-        """Callback para actualizar progreso"""
+        """Callback para actualizar progreso del procesador"""
         if total > 0:
-            progress = (current / total) * 100
-            self.progress_var.set(progress)
+            percentage = (current / total) * 100
+            self.progress_var.set(percentage)
         
         if message:
-            status_msg = f"({current}/{total}) {message}"
-            self.update_status(status_msg)
-            self.log_message(message)
+            self.status_var.set(message)
         
         self.frame.update_idletasks()
     
     def update_status(self, message):
         """Actualizar mensaje de estado"""
         self.status_var.set(message)
-        logger.info(message)
     
-    def log_message(self, message):
-        """Añadir mensaje al log"""
-        self.log_text.insert(tk.END, f"{message}\n")
-        self.log_text.see(tk.END)
+    def log_process(self, message):
+        """Agregar mensaje al log de procesamiento"""
+        self.process_log.insert(tk.END, f"{message}\n")
+        self.process_log.see(tk.END)
         self.frame.update_idletasks()
     
-    # =====================================================================
-    # MÉTODOS DE SELECCIÓN DE FEATURES
-    # =====================================================================
-    
-    def categorize_feature(self, feature_name: str) -> str:
-        """Categorizar una feature basándose en su nombre"""
-        feature_lower = feature_name.lower()
-        
-        if 'coord' in feature_lower:
-            return 'coord'
-        elif 'pe' in feature_lower or 'energy' in feature_lower:
-            return 'pe'
-        elif 'stress' in feature_lower or 'vm' in feature_lower or 'pressure' in feature_lower:
-            return 'stress'
-        elif 'voro' in feature_lower:
-            return 'voro'
-        elif 'vacan' in feature_lower or 'vac' in feature_lower:
-            return 'vacancy'
-        else:
-            return 'other'
-    
-    def populate_features_table(self):
-        """Poblar tabla de features"""
-        if self.current_dataset is None:
-            return
-        
-        # Limpiar tabla anterior
-        for item in self.features_tree.get_children():
-            self.features_tree.delete(item)
-        
-        # Resetear variables
-        self.feature_vars = {}
-        self.selected_features = set()
-        
-        # IMPORTANTE: Excluir SOLO metadata, NO el target 'vacancies'
-        # 'vacancies' se exportará pero no se mostrará como feature seleccionable
-        exclude_cols = ['file_path']  # Solo excluir metadata
-        features = [col for col in self.current_dataset.columns if col not in exclude_cols]
-        
-        # SEPARAR: features de target 
-        # Target candidates (vacancies debe estar disponible pero no seleccionable como feature)
-        target_candidates = [col for col in features if 'vacan' in col.lower()]
-        
-        # Features reales (todo excepto target candidates)
-        actual_features = [col for col in features if col not in target_candidates]
-        
-        # Actualizar target combo
-        if target_candidates:
-            self.target_combo['values'] = target_candidates
-            self.target_combo.set('vacancies' if 'vacancies' in target_candidates else target_candidates[0])
-            self.target_column = 'vacancies' if 'vacancies' in target_candidates else target_candidates[0]
-        else:
-            # Fallback si no hay columnas de vacancias
-            self.target_combo['values'] = ['vacancies']
-            self.target_combo.set('vacancies')
-            self.target_column = 'vacancies'
-        
-        # Poblar tabla SOLO con features reales (sin target)
-        for feature in sorted(actual_features):
-            category = self.categorize_feature(feature)
-            dtype = str(self.current_dataset[feature].dtype)
-            missing = int(self.current_dataset[feature].isnull().sum())
-            unique = int(self.current_dataset[feature].nunique())
-            
-            # Insertar en tabla (seleccionado por defecto)
-            item_id = self.features_tree.insert('', 'end', values=(
-                '✓', feature, category, dtype, missing, unique
-            ))
-            
-            # Agregar a seleccionados
-            self.feature_vars[feature] = True
-            self.selected_features.add(feature)
-        
-        # Actualizar contadores
-        self.update_category_counts()
-        self.update_feature_counter()
-        self.update_statistics()
-    
-    def on_tree_click(self, event):
-        """Manejar click en la tabla"""
-        region = self.features_tree.identify_region(event.x, event.y)
-        if region == "cell":
-            column = self.features_tree.identify_column(event.x, event.y)
-            if column == '#1':  # Columna de selección
-                self.toggle_feature_selection(event)
-    
-    def toggle_feature_selection(self, event):
-        """Toggle selección de feature"""
-        item = self.features_tree.selection()[0] if self.features_tree.selection() else None
-        if not item:
-            return
-        
-        values = list(self.features_tree.item(item, 'values'))
-        feature = values[1]  # Nombre de la feature
-        
-        # Toggle selección
-        if feature in self.selected_features:
-            self.selected_features.remove(feature)
-            self.feature_vars[feature] = False
-            values[0] = '✗'
-        else:
-            self.selected_features.add(feature)
-            self.feature_vars[feature] = True
-            values[0] = '✓'
-        
-        # Actualizar tabla
-        self.features_tree.item(item, values=values)
-        
-        # Actualizar contadores
-        self.update_category_counts()
-        self.update_feature_counter()
-        self.update_statistics()
-    
-    def toggle_category(self, category):
-        """Toggle todas las features de una categoría"""
-        if not self.feature_vars:
-            return
-        
-        # Obtener features de la categoría
-        cat_features = [f for f in self.feature_vars.keys() if self.categorize_feature(f) == category]
-        
-        # Verificar si todas están seleccionadas
-        all_selected = all(f in self.selected_features for f in cat_features)
-        
-        # Toggle
-        for feature in cat_features:
-            if all_selected:
-                self.selected_features.discard(feature)
-                self.feature_vars[feature] = False
-            else:
-                self.selected_features.add(feature)
-                self.feature_vars[feature] = True
-        
-        # Actualizar tabla
-        self.update_features_table()
-    
-    def select_all_features(self):
-        """Seleccionar todas las features"""
-        self.selected_features = set(self.feature_vars.keys())
-        for feature in self.feature_vars:
-            self.feature_vars[feature] = True
-        
-        self.update_features_table()
-    
-    def deselect_all_features(self):
-        """Deseleccionar todas las features"""
-        self.selected_features.clear()
-        for feature in self.feature_vars:
-            self.feature_vars[feature] = False
-        
-        self.update_features_table()
-    
-    def update_features_table(self):
-        """Actualizar tabla de features"""
-        for item in self.features_tree.get_children():
-            values = list(self.features_tree.item(item, 'values'))
-            feature = values[1]
-            
-            if feature in self.selected_features:
-                values[0] = '✓'
-            else:
-                values[0] = '✗'
-            
-            self.features_tree.item(item, values=values)
-        
-        self.update_category_counts()
-        self.update_feature_counter()
-        self.update_statistics()
-    
-    def update_category_counts(self):
-        """Actualizar contadores en botones de categorías"""
-        if not self.feature_vars:
-            return
-        
-        counts = {cat: 0 for cat in self.colors.keys()}
-        totals = {cat: 0 for cat in self.colors.keys()}
-        
-        for feat, _ in self.feature_vars.items():
-            cat = self.categorize_feature(feat)
-            totals[cat] += 1
-            if feat in self.selected_features:
-                counts[cat] += 1
-        
-        for cat, btn in self.category_buttons.items():
-            selected = counts.get(cat, 0)
-            total = totals.get(cat, 0)
-            
-            label = cat.capitalize()
-            if cat == 'pe':
-                label = "Energía"
-            elif cat == 'coord':
-                label = "Coordinación"
-            elif cat == 'voro':
-                label = "Voronoi"
-            elif cat == 'vacancy':
-                label = "Vacancias"
-            elif cat == 'other':
-                label = "Otros"
-            
-            btn.config(text=f"{label} ({selected}/{total})")
-    
-    def update_feature_counter(self):
-        """Actualizar contador de features seleccionadas"""
-        total = len(self.feature_vars)
-        selected = len(self.selected_features)
-        self.feature_counter_label.config(text=f"Features seleccionadas: {selected}/{total}")
-    
-    def on_target_change(self, event):
-        """Manejar cambio de columna target"""
-        self.target_column = self.target_combo.get()
-        self.update_statistics()
-    
-    def update_statistics(self):
-        """Actualizar panel de estadísticas"""
-        self.stats_text.delete(1.0, tk.END)
-        
-        if self.current_dataset is None or not self.selected_features:
-            self.stats_text.insert(tk.END, "No hay features seleccionadas")
-            return
-        
-        stats_info = []
-        stats_info.append("="*30)
-        stats_info.append("RESUMEN FEATURES")
-        stats_info.append("="*30)
-        stats_info.append(f"\nSeleccionadas: {len(self.selected_features)}")
-        stats_info.append(f"Target: {self.target_column}")
-        
-        # VERIFICAR que el target esté presente
-        target_available = self.target_column in self.current_dataset.columns
-        stats_info.append(f"Target disponible: {'✓' if target_available else '✗'}")
-        
-        # Estadísticas del target
-        if target_available:
-            target_data = self.current_dataset[self.target_column]
-            stats_info.append(f"\nEstadísticas target:")
-            stats_info.append(f"  Min: {target_data.min():.2f}")
-            stats_info.append(f"  Max: {target_data.max():.2f}")
-            stats_info.append(f"  Media: {target_data.mean():.2f}")
-            stats_info.append(f"  Std: {target_data.std():.2f}")
-        else:
-            stats_info.append(f"\n⚠️ TARGET NO ENCONTRADO")
-        
-        # Features por categoría
-        stats_info.append(f"\nPor categoría:")
-        for cat in ['coord', 'pe', 'stress', 'voro', 'vacancy', 'other']:
-            count = sum(1 for f in self.selected_features if self.categorize_feature(f) == cat)
-            if count > 0:
-                stats_info.append(f"  {cat}: {count}")
-        
-        # NOTA IMPORTANTE sobre exportación
-        stats_info.append(f"\n💡 NOTA:")
-        stats_info.append(f"Al exportar se incluirán:")
-        stats_info.append(f"  • Features: {len(self.selected_features)}")
-        stats_info.append(f"  • Target: {self.target_column}")
-        stats_info.append(f"  • Total: {len(self.selected_features) + (1 if target_available else 0)}")
-        
-        # Top features por varianza
-        if len(self.selected_features) > 0:
-            stats_info.append(f"\nTop 8 (por varianza):")
-            variances = {}
-            for feat in self.selected_features:
-                if feat in self.current_dataset.columns:
-                    try:
-                        var = self.current_dataset[feat].var()
-                        if not np.isnan(var):
-                            variances[feat] = var
-                    except:
-                        pass
-            
-            sorted_vars = sorted(variances.items(), key=lambda x: x[1], reverse=True)[:8]
-            for feat, var in sorted_vars:
-                stats_info.append(f"  {feat[:18]}: {var:.4f}")
-        
-        self.stats_text.insert(tk.END, "\n".join(stats_info))
-    
-    # =====================================================================
-    # MÉTODOS DE EXPORTACIÓN Y RESULTADOS
-    # =====================================================================
-    
-    def update_results_display(self, text):
-        """Actualizar display de resultados"""
-        self.results_info_text.config(state="normal")
-        self.results_info_text.delete(1.0, tk.END)
-        self.results_info_text.insert(1.0, text)
-        self.results_info_text.config(state="disabled")
-    
-    def format_processing_results(self, summary, csv_path):
-        """Formatear resultados del procesamiento"""
-        text = f"✅ PROCESAMIENTO SIN FUGA COMPLETADO\n\n"
-        text += f"📊 RESUMEN DEL DATASET:\n"
-        text += f"   • Archivos procesados: {summary['total_files']}\n"
-        text += f"   • Features extraídas: {summary['total_features']}\n"
-        text += f"   • Archivo guardado: {csv_path}\n\n"
-        
-        text += f"📈 DISTRIBUCIÓN DE FEATURES:\n"
-        for category, count in summary['feature_categories'].items():
-            text += f"   • {category.capitalize()}: {count}\n"
-        
-        text += f"\n🔒 CARACTERÍSTICAS DE SEGURIDAD:\n"
-        text += f"   • SIN FUGA: No se incluyen n_atoms, vacancy_fraction\n"
-        text += f"   • SIN FUGA: No se incluyen features que revelen vacancias\n"
-        text += f"   • Todas las estadísticas calculadas solo sobre átomos presentes\n"
-        
-        if summary.get('vacancy_stats'):
-            vac_stats = summary['vacancy_stats']
-            text += f"\nℹ️ INFORMACIÓN DE VACANCIAS (SOLO METADATA):\n"
-            text += f"   • Mínimo: {vac_stats['min']}\n"
-            text += f"   • Máximo: {vac_stats['max']}\n"
-            text += f"   • Promedio: {vac_stats['mean']:.1f}\n"
-            text += f"   • Desviación: {vac_stats['std']:.1f}\n"
-        
-        text += f"\n💡 NOTA: Use el tab 'Selección Features' para elegir features específicas\n"
-        
-        return text
-    
-    def export_full_dataset(self):
-        """Exportar dataset completo"""
-        if self.current_dataset is None:
-            messagebox.showwarning("Advertencia", "No hay dataset para exportar")
-            return
-        
-        try:
-            filename = filedialog.asksaveasfilename(
-                defaultextension=".csv",
-                filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx")]
-            )
-            
-            if filename:
-                if filename.endswith('.xlsx'):
-                    self.current_dataset.to_excel(filename)
-                else:
-                    self.current_dataset.to_csv(filename)
-                
-                messagebox.showinfo("Éxito", f"Dataset completo exportado:\n{filename}")
-                self.log_message(f"Dataset completo exportado: {filename}")
-                
-        except Exception as e:
-            messagebox.showerror("Error", f"Error exportando dataset: {str(e)}")
-            self.log_message(f"Error exportando: {e}")
-    
-    def export_selected_features(self):
-        """Exportar features seleccionadas + target vacancies SIEMPRE"""
-        if self.current_dataset is None or not self.selected_features:
-            messagebox.showwarning("Advertencia", "No hay features seleccionadas")
-            return
-        
-        try:
-            filename = filedialog.asksaveasfilename(
-                defaultextension=".csv",
-                filetypes=[("CSV files", "*.csv"), ("Excel files", "*.xlsx")]
-            )
-            
-            if filename:
-                # CRÍTICO: Incluir features seleccionadas + target SIEMPRE
-                columns = list(self.selected_features)
-                
-                # ASEGURAR que vacancies esté incluido para entrenamiento
-                if self.target_column and self.target_column in self.current_dataset.columns:
-                    if self.target_column not in columns:
-                        columns.append(self.target_column)
-                else:
-                    # Fallback: buscar vacancies si target_column no está definido
-                    if 'vacancies' in self.current_dataset.columns and 'vacancies' not in columns:
-                        columns.append('vacancies')
-                        messagebox.showinfo("Información", 
-                                           "Se añadió automáticamente la columna 'vacancies' como target")
-                
-                filtered_dataset = self.current_dataset[columns]
-                
-                if filename.endswith('.xlsx'):
-                    filtered_dataset.to_excel(filename)
-                else:
-                    filtered_dataset.to_csv(filename)
-                
-                # Separar features de target en el mensaje
-                feature_count = len([col for col in columns if col != self.target_column])
-                
-                messagebox.showinfo("Éxito", 
-                                   f"Dataset para ML exportado:\n{filename}\n\n"
-                                   f"Features: {feature_count}\n"
-                                   f"Target: {self.target_column}\n"
-                                   f"Total columnas: {len(columns)}\n"
-                                   f"Muestras: {len(filtered_dataset)}")
-                
-                self.log_message(f"Features seleccionadas exportadas: {filename}")
-                self.log_message(f"Features: {feature_count}, Target: {self.target_column}")
-                
-        except Exception as e:
-            messagebox.showerror("Error", f"Error exportando features: {str(e)}")
-            self.log_message(f"Error exportando features: {e}")
-    
-    def load_to_advanced_ml(self):
-        """Cargar dataset al Advanced ML tab con target incluido"""
-        if self.current_dataset is None:
-            messagebox.showwarning("Advertencia", "No hay dataset para cargar")
-            return
-        
-        if not self.selected_features:
-            messagebox.showwarning("Advertencia", "No hay features seleccionadas")
-            return
-        
-        try:
-            # CRÍTICO: Preparar dataset con features + target
-            columns = list(self.selected_features)
-            
-            # ASEGURAR que el target esté incluido
-            if self.target_column and self.target_column in self.current_dataset.columns:
-                if self.target_column not in columns:
-                    columns.append(self.target_column)
-            else:
-                # Fallback
-                if 'vacancies' in self.current_dataset.columns and 'vacancies' not in columns:
-                    columns.append('vacancies')
-            
-            filtered_dataset = self.current_dataset[columns]
-            
-            # Verificar que el target esté presente
-            target_present = self.target_column in filtered_dataset.columns
-            if not target_present and 'vacancies' in filtered_dataset.columns:
-                target_present = True
-                self.target_column = 'vacancies'
-            
-            # Llamar callback
-            if self.data_loaded_callback:
-                self.data_loaded_callback(filtered_dataset)
-                
-                feature_count = len([col for col in columns if col not in ['vacancies', self.target_column]])
-                
-                messagebox.showinfo("Éxito", 
-                                   f"Dataset cargado en Advanced ML:\n\n"
-                                   f"Features: {feature_count}\n"
-                                   f"Target: {self.target_column}\n"
-                                   f"Target incluido: {'Sí' if target_present else 'No'}\n"
-                                   f"Total columnas: {len(columns)}\n"
-                                   f"Muestras: {len(filtered_dataset)}")
-                
-                self.log_message(f"Dataset cargado en Advanced ML: {len(columns)} columnas")
-                
-                if not target_present:
-                    messagebox.showwarning("Advertencia", 
-                                         "¡ATENCIÓN! No se encontró columna target.\n"
-                                         "El entrenamiento puede fallar.")
-            else:
-                messagebox.showwarning("Advertencia", "Callback no disponible")
-                
-        except Exception as e:
-            messagebox.showerror("Error", f"Error cargando a ML: {str(e)}")
-            self.log_message(f"Error cargando a ML: {e}")
-    
-    def export_feature_config(self):
-        """Exportar configuración de features seleccionadas"""
-        if not self.selected_features:
-            messagebox.showwarning("Advertencia", "No hay features seleccionadas")
-            return
-        
-        try:
-            filename = filedialog.asksaveasfilename(
-                defaultextension=".json",
-                filetypes=[("JSON files", "*.json")]
-            )
-            
-            if filename:
-                config = {
-                    'selected_features': list(self.selected_features),
-                    'target_column': self.target_column,
-                    'total_features': len(self.feature_vars),
-                    'processing_params': {
-                        'atm_total': self.atm_total_var.get(),
-                        'energy_min': self.energy_min_var.get(),
-                        'energy_max': self.energy_max_var.get(),
-                        'energy_bins': self.energy_bins_var.get()
-                    },
-                    'dataset_info': {
-                        'rows': len(self.current_dataset) if self.current_dataset is not None else 0,
-                        'original_columns': len(self.current_dataset.columns) if self.current_dataset is not None else 0
-                    },
-                    'export_timestamp': pd.Timestamp.now().isoformat()
-                }
-                
-                with open(filename, 'w') as f:
-                    json.dump(config, f, indent=4)
-                
-                messagebox.showinfo("Éxito", f"Configuración exportada:\n{filename}")
-                self.log_message(f"Configuración exportada: {filename}")
-                
-        except Exception as e:
-            messagebox.showerror("Error", f"Error exportando configuración: {str(e)}")
-            self.log_message(f"Error exportando config: {e}")
-    
-    def import_feature_config(self):
-        """Importar configuración de features"""
-        if self.current_dataset is None:
-            messagebox.showwarning("Advertencia", "Primero procese un dataset")
-            return
-        
-        try:
-            filename = filedialog.askopenfilename(
-                filetypes=[("JSON files", "*.json")]
-            )
-            
-            if filename:
-                with open(filename, 'r') as f:
-                    config = json.load(f)
-                
-                if 'selected_features' in config:
-                    # Verificar que las features existan
-                    available_features = set(self.feature_vars.keys())
-                    config_features = set(config['selected_features'])
-                    
-                    missing_features = config_features - available_features
-                    if missing_features:
-                        messagebox.showwarning("Advertencia", 
-                                             f"Algunas features no están disponibles:\n{missing_features}")
-                    
-                    # Aplicar configuración
-                    self.selected_features = config_features & available_features
-                    
-                    # Actualizar feature_vars
-                    for feature in self.feature_vars:
-                        self.feature_vars[feature] = feature in self.selected_features
-                    
-                    # Actualizar target si existe
-                    if 'target_column' in config:
-                        target = config['target_column']
-                        if target in self.current_dataset.columns:
-                            self.target_column = target
-                            self.target_combo.set(target)
-                    
-                    # Actualizar tabla
-                    self.update_features_table()
-                    
-                    messagebox.showinfo("Éxito", 
-                                       f"Configuración importada:\n\n"
-                                       f"Features aplicadas: {len(self.selected_features)}\n"
-                                       f"Features faltantes: {len(missing_features)}")
-                    
-                    self.log_message(f"Configuración importada: {filename}")
-                    
-        except Exception as e:
-            messagebox.showerror("Error", f"Error importando configuración: {str(e)}")
-            self.log_message(f"Error importando config: {e}")
+    def log_training(self, message):
+        """Agregar mensaje al log de entrenamiento"""
+        self.training_log.insert(tk.END, f"{message}\n")
+        self.training_log.see(tk.END)
+        self.frame.update_idletasks()
     
     def reset(self):
-        """Reset completo del tab"""
-        # Reset variables de procesamiento
+        """Resetear el tab completo"""
+        # Resetear variables
         self.directory_var.set("")
         self.output_dir_var.set("ml_dataset_output")
         self.atm_total_var.set(16384)
         self.energy_min_var.set(-4.0)
         self.energy_max_var.set(-3.0)
         self.energy_bins_var.set(10)
+        self.test_size_var.set(0.2)
+        self.n_estimators_var.set(100)
+        self.random_state_var.set(42)
         
-        # Reset estado
+        # Resetear datos
         self.current_dataset = None
-        self.processing = False
+        self.selected_features.clear()
+        self.trained_model = None
         
-        # Reset features
-        self.selected_features = set()
-        self.feature_vars = {}
-        self.target_column = "vacancies"
+        # Resetear UI
+        self.progress_var.set(0)
+        self.train_progress_var.set(0)
+        self.status_var.set("Listo para procesar")
+        self.train_status_var.set("Listo para entrenar")
         
-        # Reset controles
-        self._reset_processing_controls()
+        self.process_log.delete(1.0, tk.END)
+        self.training_log.delete(1.0, tk.END)
         
-        # Limpiar displays
-        self.update_status("Listo para procesar archivos")
-        self.log_text.delete(1.0, tk.END)
-        self.log_message("Tab reiniciado")
+        self.metrics_text.config(state='normal')
+        self.metrics_text.delete(1.0, tk.END)
+        self.metrics_text.config(state='disabled')
         
-        # Limpiar tabla
-        if hasattr(self, 'features_tree'):
-            for item in self.features_tree.get_children():
-                self.features_tree.delete(item)
+        self.results_text.config(state='normal')
+        self.results_text.delete(1.0, tk.END)
+        self.results_text.config(state='disabled')
         
-        # Limpiar estadísticas
-        if hasattr(self, 'stats_text'):
-            self.stats_text.delete(1.0, tk.END)
-            self.stats_text.insert(tk.END, "Procese archivos para ver estadísticas")
+        # Limpiar tablas
+        for item in self.features_tree.get_children():
+            self.features_tree.delete(item)
         
-        # Limpiar resultados
-        if hasattr(self, 'results_info_text'):
-            self.update_results_display("No hay resultados")
+        self.update_dataset_info(None)
+        self.update_selection_summary()
+        
+        # Resetear estados
+        self.is_processing = False
+        self.is_training = False
+        self.process_button.config(state="normal")
+        self.train_button.config(state="normal")
+        self.stop_train_button.config(state="disabled")
         
         # Volver al primer tab
         self.notebook.select(0)
-    
-    def get_frame(self):
-        """Obtener frame del tab"""
-        return self.frame

@@ -10,7 +10,7 @@ long_description = (this_directory / "README.md").read_text(encoding='utf-8')
 
 setup(
     name="FreeDynamics-simaf",
-    version='2.0.6',  # Increment version
+    version='2.1.0',  # Increment version
     author="Eduardo Bringa, Santiago Bergamin",
     author_email="santiagobergamin@gmail.com",
     description="A comprehensive ML tool for vacancy prediction with GUI",
