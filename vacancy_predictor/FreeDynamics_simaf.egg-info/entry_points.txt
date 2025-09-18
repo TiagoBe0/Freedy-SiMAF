@@ -1,3 +1,0 @@
-[console_scripts]
-freedy = main:main
-vacancy-predictor = vacancy_predictor.cli.commands:main

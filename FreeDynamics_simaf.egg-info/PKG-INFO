@@ -1,6 +1,6 @@
 Metadata-Version: 2.4
 Name: FreeDynamics-simaf
-Version: 1.6.9
+Version: 2.0.6
 Summary: A comprehensive ML tool for vacancy prediction with GUI
 Home-page: https://github.com/tuusuario/vacancy-predictor
 Author: Eduardo Bringa, Santiago Bergamin
@@ -64,3 +64,4 @@ Dynamic: requires-python
 Dynamic: summary
 
 # FreeDynamics-pypi
+# Freedy-SiMAF

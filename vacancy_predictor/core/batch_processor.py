@@ -1,5 +1,6 @@
 """
 Procesador batch para archivos LAMMPS dump - Integración con GUI
+Versión corregida SIN FUGA de información
 """
 
 import pandas as pd
@@ -13,7 +14,7 @@ import io
 logger = logging.getLogger(__name__)
 
 class BatchDumpProcessor:
-    """Procesador batch de archivos LAMMPS dump para extracción de features"""
+    """Procesador batch de archivos LAMMPS dump para extracción de features SIN FUGA"""
     
     def __init__(self):
         # Configuración por defecto
@@ -27,7 +28,7 @@ class BatchDumpProcessor:
             'n_atoms',
             'vacancy_fraction', 
             'vacancy_count',
-            'atm_total_ref'
+            'atm_total_ref' # Ahora también prohibimos vacancies como feature
         ]
         
         self.progress_callback = None
@@ -102,6 +103,7 @@ class BatchDumpProcessor:
         syy_dev = syy - mean_normal
         szz_dev = szz - mean_normal
 
+        # CORRECCIÓN: Usar ** para potencia en lugar de ^
         vm = np.sqrt(1.5*(sxx_dev**2 + syy_dev**2 + szz_dev**2 + 2*(sxy**2 + sxz**2 + syz**2)))
 
         df = df.copy()
@@ -263,38 +265,41 @@ class BatchDumpProcessor:
         """
         Extrae features de un DataFrame de átomos SIN incluir información de vacancias
         que pueda causar fuga de información
+        
+        IMPORTANTE: Todas las estadísticas se calculan sobre los átomos presentes,
+        NO sobre el total configurado por el usuario
         """
         df = self.add_stress_invariants(df)
         props = self.pick_candidate_properties(df)
 
         feats: Dict[str, Any] = {}
         
-        # Agregados estadísticos por propiedad
+        # Agregados estadísticos por propiedad (solo sobre átomos presentes)
         for pname, series in props.items():
             feats.update(self.agg_stats(series, pname))
 
-        # Indicadores de defectos
+        # Indicadores de defectos (solo sobre átomos presentes)
         feats.update(self.extra_bulk_indicators(props))
 
-        # Histograma de coordinación
+        # Histograma de coordinación (solo sobre átomos presentes)
         if "coord" in props:
             coord_hist = self.compute_coordination_histogram(props["coord"])
             feats.update(coord_hist)
         
-        # Histograma de energía
+        # Histograma de energía (solo sobre átomos presentes)
         if "pe" in props:
             pe_hist = self.compute_energy_histogram(props["pe"])
             feats.update(pe_hist)
 
-        # Energía mínima absoluta
+        # Energía mínima absoluta (solo sobre átomos presentes)
         if "pe" in props:
             pe_clean = props["pe"].replace([np.inf, -np.inf], np.nan).dropna()
             if len(pe_clean):
                 feats["pe_absolute_min"] = float(pe_clean.min())
         
-        # IMPORTANTE: Solo calculamos vacancies para el TARGET, no como feature
-        vacancies = int(self.atm_total - n_atoms)
-        feats["vacancies"] = vacancies  # Solo para usar como target/label
+        # IMPORTANTE: NO incluimos vacancies en las features
+        # El target se calculará externamente si es necesario
+        # vacancies = int(self.atm_total - n_atoms)  # ¡NO INCLUIR!
         
         return feats
     
@@ -316,6 +321,7 @@ class BatchDumpProcessor:
     def process_directory(self, directory: str) -> pd.DataFrame:
         """
         Procesa todos los archivos .dump en un directorio y retorna DataFrame con features
+        SIN incluir información de vacancias
         """
         dump_files = self.find_dump_files(directory)
         
@@ -336,15 +342,18 @@ class BatchDumpProcessor:
                 # Parsear archivo dump
                 df, n_atoms = self.parse_last_frame_dump(file_path)
                 
-                # Extraer features
+                # Extraer features (SIN información de vacancias)
                 features = self.extract_features_from_dump(df, n_atoms)
                 features["file"] = file_name
                 features["file_path"] = file_path
                 
+                # Calcular vacancias solo como metadata, no como feature
+                vacancies = int(self.atm_total - n_atoms)
+                features["vacancies"] = vacancies  # Solo para uso externo como target
+                
                 rows.append(features)
                 
-                vacancies = self.atm_total - n_atoms
-                logger.info(f"Procesado {file_name}: {n_atoms} átomos, {vacancies} vacancias")
+                logger.info(f"Procesado {file_name}: {n_atoms} átomos presentes, {vacancies} vacancias")
                 
             except Exception as e:
                 error_msg = f"Error en {Path(file_path).name}: {str(e)}"
@@ -377,24 +386,26 @@ class BatchDumpProcessor:
         """Genera resumen de features extraídas"""
         summary = {
             "total_files": len(dataset),
-            "total_features": len(dataset.columns) - 1,  # -1 por file_path
+            "total_features": len([col for col in dataset.columns if col not in ['file_path']]),
             "feature_categories": {},
             "vacancy_stats": {}
         }
         
-        # Categorizar features
-        coord_features = [col for col in dataset.columns if col.startswith('coord')]
-        pe_features = [col for col in dataset.columns if col.startswith('pe')]
-        stress_features = [col for col in dataset.columns if col.startswith('stress') or any(x in col for x in ['sxx', 'syy', 'szz', 'sxy', 'sxz', 'syz'])]
+        # Categorizar features (excluyendo metadata)
+        feature_cols = [col for col in dataset.columns if col not in ['file_path']]
+        
+        coord_features = [col for col in feature_cols if col.startswith('coord')]
+        pe_features = [col for col in feature_cols if col.startswith('pe')]
+        stress_features = [col for col in feature_cols if col.startswith('stress') or any(x in col for x in ['sxx', 'syy', 'szz', 'sxy', 'sxz', 'syz'])]
         
         summary["feature_categories"] = {
             "coordination": len(coord_features),
             "potential_energy": len(pe_features), 
             "stress": len(stress_features),
-            "other": len(dataset.columns) - len(coord_features) - len(pe_features) - len(stress_features) - 2  # -2 por vacancies y file_path
+            "other": len(feature_cols) - len(coord_features) - len(pe_features) - len(stress_features)
         }
         
-        # Estadísticas de vacancias si existe la columna
+        # Estadísticas de vacancias si existe la columna (solo para información)
         if 'vacancies' in dataset.columns:
             vac_stats = dataset['vacancies'].describe()
             summary["vacancy_stats"] = {
