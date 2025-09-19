@@ -1,6 +1,6 @@
 """
-Procesador batch refactorizado - Clase principal que coordina todos los módulos
-ACTUALIZADO para usar EnhancedSafeFeatureExtractor
+BatchProcessor Mejorado con capacidad de filtrado OVITO
+Extiende el BatchProcessor existente para incluir filtrado de superficie
 """
 
 import pandas as pd
@@ -9,30 +9,55 @@ from pathlib import Path
 from typing import List, Dict, Any, Tuple, Optional, Callable
 import logging
 import threading
-from dataclasses import asdict
+from dataclasses import asdict, dataclass
 
-# Importar módulos refactorizados
+# Importaciones de OVITO
+from ovito.io import import_file, export_file
+from ovito.modifiers import (
+    ConstructSurfaceModifier,
+    InvertSelectionModifier,
+    DeleteSelectedModifier,
+    AffineTransformationModifier
+)
+
+# Importar módulos existentes
 from .config import ProcessingConfig, FeatureMode
 from .file_parser import LAMMPSFileParser
-from .enhanced_safe_feature_extractor import EnhancedSafeFeatureExtractor  # ACTUALIZADO
+from .feature_extractor import SafeFeatureExtractor
 from .data_leakage_detector import DataLeakageDetector
 
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class OvitoFilterConfig:
+    """Configuración para filtrado OVITO"""
+    enable_ovito_filter: bool = False
+    surface_radius: float = 2.0
+    smoothing_level: int = 0
+    apply_stress_tensor: bool = False
+    stress_tensor: Tuple[float, float, float] = (1.0, 1.0, 1.0)
+    export_filtered_dumps: bool = False
+    filtered_dump_dir: Optional[str] = None
+
+
 class BatchDumpProcessor:
     """
-    Procesador batch refactorizado con separación de responsabilidades
-    y control estricto de fuga de información.
-    ACTUALIZADO para usar features mejoradas.
+    BatchProcessor mejorado con capacidad de filtrado OVITO
+    
+    Combina el procesamiento batch existente con filtrado de superficie
+    para calcular features solo en átomos alrededor del nanoporo
     """
     
-    def __init__(self, config: Optional[ProcessingConfig] = None):
+    def __init__(self, 
+                 config: Optional[ProcessingConfig] = None,
+                 ovito_config: Optional[OvitoFilterConfig] = None):
         self.config = config or ProcessingConfig()
+        self.ovito_config = ovito_config or OvitoFilterConfig()
         
-        # Inicializar componentes especializados (ACTUALIZADO)
+        # Inicializar componentes especializados
         self.file_parser = LAMMPSFileParser()
-        #self.feature_extractor = EnhancedSafeFeatureExtractor(self.config)  # MEJORADO
+        self.feature_extractor = SafeFeatureExtractor(self.config)
         self.leakage_detector = DataLeakageDetector()
         
         # Callback para progreso
@@ -40,6 +65,29 @@ class BatchDumpProcessor:
         
         # Estado del procesamiento
         self._stop_requested = False
+        
+        # Crear directorio para dumps filtrados si es necesario
+        if self.ovito_config.export_filtered_dumps and self.ovito_config.filtered_dump_dir:
+            Path(self.ovito_config.filtered_dump_dir).mkdir(parents=True, exist_ok=True)
+    
+    def set_ovito_filter(self, 
+                        enable: bool = True,
+                        surface_radius: float = 3.0,
+                        smoothing_level: int = 0,
+                        apply_stress: bool = False,
+                        stress_tensor: Tuple[float, float, float] = (1.0, 1.0, 1.0)):
+        """Configurar filtrado OVITO"""
+        self.ovito_config.enable_ovito_filter = enable
+        self.ovito_config.surface_radius = surface_radius
+        self.ovito_config.smoothing_level = smoothing_level
+        self.ovito_config.apply_stress_tensor = apply_stress
+        self.ovito_config.stress_tensor = stress_tensor
+        
+        logger.info(f"Filtrado OVITO {'habilitado' if enable else 'deshabilitado'}")
+        if enable:
+            logger.info(f"  - Radio superficie: {surface_radius}")
+            logger.info(f"  - Nivel suavizado: {smoothing_level}")
+            logger.info(f"  - Tensor stress: {apply_stress}")
     
     def set_parameters(self, **kwargs):
         """Actualizar parámetros de configuración"""
@@ -48,13 +96,13 @@ class BatchDumpProcessor:
                 setattr(self.config, key, value)
                 logger.info(f"Actualizado {key} = {value}")
         
-        # Recrear feature extractor con nueva configuración (ACTUALIZADO)
-        self.feature_extractor = EnhancedSafeFeatureExtractor(self.config)
+        # Recrear feature extractor con nueva configuración
+        self.feature_extractor = SafeFeatureExtractor(self.config)
     
     def set_feature_mode(self, mode: FeatureMode):
         """Establecer modo de extracción de features"""
         self.config.feature_mode = mode
-        self.feature_extractor = EnhancedSafeFeatureExtractor(self.config)  # ACTUALIZADO
+        self.feature_extractor = SafeFeatureExtractor(self.config)
         logger.info(f"Modo de features establecido: {mode.value}")
     
     def set_progress_callback(self, callback: Callable):
@@ -65,85 +113,91 @@ class BatchDumpProcessor:
                          validate_leakage: bool = True,
                          save_intermediate: bool = False) -> pd.DataFrame:
         """
-        Procesar directorio completo con control de fuga
+        Procesar directorio completo con filtrado OVITO opcional
         
         Args:
             directory: Directorio con archivos .dump
-            validate_leakage: Si validar fuga de información
+            validate_leakage: Si validar contra fuga de información
             save_intermediate: Si guardar resultados intermedios
             
         Returns:
-            DataFrame con features y target separados apropiadamente
+            DataFrame con features extraídas
         """
-        self._stop_requested = False
+        logger.info(f"Iniciando procesamiento de directorio: {directory}")
         
-        # Encontrar archivos dump
-        dump_files = self.file_parser.find_dump_files(directory)
+        if self.ovito_config.enable_ovito_filter:
+            logger.info("MODO OVITO HABILITADO - Features calculadas solo en región nanoporo")
+            logger.info(f"Radio superficie: {self.ovito_config.surface_radius}")
+            logger.info(f"Nivel suavizado: {self.ovito_config.smoothing_level}")
+        else:
+            logger.info("MODO ESTÁNDAR - Features calculadas en todos los átomos")
         
+        # Encontrar archivos
+        dump_files = self.find_dump_files(directory)
         if not dump_files:
             raise ValueError(f"No se encontraron archivos .dump en {directory}")
         
-        logger.info(f"Encontrados {len(dump_files)} archivos .dump")
-        logger.info(f"Modo: {self.config.feature_mode.value}")
-        logger.info(f"Extractor: EnhancedSafeFeatureExtractor")  # NUEVO LOG
-        
-        self._report_progress(0, len(dump_files), "Iniciando procesamiento...")
+        logger.info(f"Encontrados {len(dump_files)} archivos para procesar")
         
         # Procesar archivos
         results = []
         errors = []
+        filter_stats = []  # Estadísticas del filtrado OVITO
         
-        for i, file_path in enumerate(dump_files, 1):
+        for i, file_path in enumerate(dump_files):
             if self._stop_requested:
-                logger.info("Procesamiento detenido por usuario")
+                logger.info("Procesamiento detenido por solicitud del usuario")
                 break
-            
-            try:
-                file_name = Path(file_path).name
-                self._report_progress(i, len(dump_files), f"Procesando {file_name}")
                 
-                # Procesar archivo individual
-                features = self._process_single_file(file_path)
-                features["file"] = file_name
-                features["file_path"] = file_path
+            try:
+                # Reportar progreso
+                if self.progress_callback:
+                    self.progress_callback(i, len(dump_files), f"Procesando {Path(file_path).name}")
+                
+                # Procesar archivo individual (con o sin OVITO)
+                if self.ovito_config.enable_ovito_filter:
+                    features, stats = self._process_single_file_with_ovito(file_path)
+                    filter_stats.append(stats)
+                else:
+                    features = self._process_single_file_standard(file_path)
                 
                 results.append(features)
                 
-                # Log sin revelar información sensible
-                n_atoms = features.get('_n_atoms_metadata', 'N/A')
-                n_features = len([k for k in features.keys() 
-                                if not k.startswith('_') and k not in ['file', 'file_path', 'file_hash', 'vacancies']])
-                logger.info(f"✓ {file_name}: {n_atoms} átomos, {n_features} features extraídas")
+                logger.debug(f"Procesado {Path(file_path).name}: {len(features)} features")
                 
             except Exception as e:
-                error_msg = f"Error en {Path(file_path).name}: {str(e)}"
-                errors.append(error_msg)
+                error_msg = f"Error procesando {file_path}: {str(e)}"
                 logger.error(error_msg)
-        
-        if not results:
-            raise RuntimeError("No se pudieron procesar archivos correctamente")
+                errors.append({"file": file_path, "error": str(e)})
         
         # Crear dataset
-        dataset = pd.DataFrame(results).set_index("file").sort_index()
+        if not results:
+            raise RuntimeError("No se pudieron procesar archivos válidos")
         
-        # Log de summary de features mejoradas
-        self._log_enhanced_features_summary(dataset)
+        dataset = pd.DataFrame(results)
+        logger.info(f"Dataset creado: {len(dataset)} filas, {len(dataset.columns)} columnas")
         
-        # Validar fuga de información si está habilitado
+        # Agregar estadísticas de filtrado si se usó OVITO
+        if self.ovito_config.enable_ovito_filter and filter_stats:
+            self._add_filter_statistics_to_report(filter_stats)
+        
+        # Validar contra fuga de información
         if validate_leakage:
             self._validate_and_clean_dataset(dataset)
         
-        # Guardar intermedios si está habilitado
-        if save_intermediate:
-            self._save_intermediate_results(dataset, directory)
+        # Reportar resultados finales
+        if self.progress_callback:
+            self.progress_callback(len(dump_files), len(dump_files), "Completado")
         
-        # Reporte final
-        self._generate_final_report(dataset, errors)
+        # Generar reporte
+        self._generate_final_report(dataset, errors, filter_stats if self.ovito_config.enable_ovito_filter else None)
         
         return dataset
     
-    def _process_single_file(self, file_path: str) -> Dict[str, Any]:
-        """Procesar un archivo individual"""
+    def _process_single_file_standard(self, file_path: str) -> Dict[str, Any]:
+        """
+        Procesar archivo sin filtrado OVITO (método original)
+        """
         # Parsear archivo
         df, n_atoms, metadata = self.file_parser.parse_last_frame(file_path)
         
@@ -151,47 +205,168 @@ class BatchDumpProcessor:
         if df.empty or n_atoms <= 0:
             raise ValueError(f"Datos inválidos: {n_atoms} átomos")
         
-        # Extraer features (USANDO ENHANCED EXTRACTOR)
-        features = self.feature_extractor.extract_features(df, n_atoms, metadata)
+        # Extraer features
+        features = self.feature_extractor.extract_features(df, metadata)
         
         # Agregar metadata de procesamiento
-        features["_n_atoms_metadata"] = n_atoms
-        features["_processing_mode"] = self.config.feature_mode.value
-        features["_extractor_version"] = "EnhancedSafeFeatureExtractor"  # NUEVO
+        features["_n_atoms_in_file"] = n_atoms
+        features["_processing_mode"] = f"{self.config.feature_mode.value}_standard"
+        features["_file_path"] = file_path
+        features["_ovito_filtered"] = False
+        
+        # Verificar cálculo de vacancies
+        calculated_vacancies = self.config.atm_total - n_atoms
+        if features.get("vacancies") != calculated_vacancies:
+            logger.warning(f"Inconsistencia en cálculo de vacancies: "
+                         f"esperado {calculated_vacancies}, obtenido {features.get('vacancies')}")
         
         return features
     
-    def _log_enhanced_features_summary(self, dataset: pd.DataFrame):
-        """Log del resumen de features mejoradas"""
-        feature_cols = [col for col in dataset.columns 
-                       if not col.startswith('_') and col not in ['file_path', 'file_hash', 'vacancies']]
+    def _process_single_file_with_ovito(self, file_path: str) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        Procesar archivo CON filtrado OVITO
         
-        # Categorizar features
-        original_features = []
-        advanced_features = []
+        Returns:
+            Tuple de (features, estadísticas_filtrado)
+        """
+        logger.debug(f"Aplicando filtrado OVITO a {Path(file_path).name}")
         
-        for col in feature_cols:
-            if any(col.startswith(prefix) for prefix in [
-                'thermal_', 'pe_disorder_', 'pe_gradient_', 'stress_instability',
-                'stress_anisotropy', 'hydrostatic_', 'atomic_density_',
-                'spatial_anisotropy', 'volume_packing_', 'coordination_disorder',
-                'effective_density_normalized', 'voro_vol_cv_enhanced',
-                'energy_stress_', 'structural_cohesion', 'thermodynamic_imbalance',
-                'vacancy_density_proxy', 'multiscale_disorder', 'energy_asymmetry',
-                'pe_variability_', 'stress_I1_I2_', 'stress_I2_I3_',
-                'spatial_energy_', 'volume_energy_', 'pe_skew_robust', 'pe_kurt_robust'
-            ]):
-                advanced_features.append(col)
-            else:
-                original_features.append(col)
+        # 1. Cargar archivo y obtener número de átomos original
+        pipeline = import_file(file_path)
+        original_data = pipeline.compute()
+        n_atoms_original = original_data.particles.count
         
-        logger.info(f"FEATURES SUMMARY:")
-        logger.info(f"  Original features: {len(original_features)}")
-        logger.info(f"  Advanced features: {len(advanced_features)}")
-        logger.info(f"  Total features: {len(feature_cols)}")
+        # 2. Aplicar deformación afín si se solicita
+        if self.ovito_config.apply_stress_tensor:
+            pipeline.modifiers.append(AffineTransformationModifier(
+                operate_on={'particles', 'cell'},
+                transformation=[
+                    [self.ovito_config.stress_tensor[0], 0, 0, 0],
+                    [0, self.ovito_config.stress_tensor[1], 0, 0],
+                    [0, 0, self.ovito_config.stress_tensor[2], 0]
+                ]
+            ))
         
-        if advanced_features:
-            logger.info(f"  Advanced features incluyen: {advanced_features[:5]}")
+        # 3. Aplicar filtro de superficie
+        pipeline.modifiers.append(ConstructSurfaceModifier(
+            radius=self.ovito_config.surface_radius,
+            smoothing_level=self.ovito_config.smoothing_level,
+            identify_regions=True,
+            select_surface_particles=True
+        ))
+        
+        # 4. Invertir selección para quedarse con región nanoporo
+        pipeline.modifiers.append(InvertSelectionModifier())
+        
+        # 5. Eliminar átomos seleccionados (superficie)
+        pipeline.modifiers.append(DeleteSelectedModifier())
+        
+        # 6. Obtener datos filtrados
+        filtered_data = pipeline.compute()
+        n_atoms_filtered = filtered_data.particles.count
+        
+        # 7. Estadísticas del filtrado
+        filter_ratio = n_atoms_filtered / n_atoms_original if n_atoms_original > 0 else 0
+        filter_stats = {
+            'file': Path(file_path).name,
+            'n_atoms_original': n_atoms_original,
+            'n_atoms_filtered': n_atoms_filtered,
+            'filter_ratio': filter_ratio,
+            'atoms_removed': n_atoms_original - n_atoms_filtered
+        }
+        
+        logger.debug(f"Filtrado OVITO: {n_atoms_original} → {n_atoms_filtered} átomos (ratio: {filter_ratio:.3f})")
+        
+        # 8. Exportar dump filtrado si se solicita
+        if self.ovito_config.export_filtered_dumps and self.ovito_config.filtered_dump_dir:
+            filtered_dump_path = Path(self.ovito_config.filtered_dump_dir) / f"filtered_{Path(file_path).stem}.dump"
+            try:
+                export_file(
+                    pipeline,
+                    str(filtered_dump_path),
+                    "lammps/dump",
+                    columns=[
+                        "Particle Identifier",
+                        "Particle Type",
+                        "Position.X",
+                        "Position.Y",
+                        "Position.Z"
+                    ]
+                )
+            except Exception as e:
+                logger.warning(f"No se pudo exportar dump filtrado: {e}")
+        
+        # 9. Convertir datos filtrados a DataFrame
+        df_filtered = self._ovito_data_to_dataframe(filtered_data)
+        
+        # 10. Crear metadata para extracción de features
+        metadata = {
+            'n_atoms_original': n_atoms_original,
+            'n_atoms_filtered': n_atoms_filtered,
+            'filter_ratio': filter_ratio,
+            'file_path': file_path
+        }
+        
+        # 11. Extraer features de los datos filtrados
+        features = self.feature_extractor.extract_features(df_filtered, metadata)
+        
+        # 12. Agregar metadata específico de OVITO
+        features["_n_atoms_original"] = n_atoms_original
+        features["_n_atoms_filtered"] = n_atoms_filtered
+        features["_filter_ratio"] = filter_ratio
+        features["_atoms_removed"] = n_atoms_original - n_atoms_filtered
+        features["_processing_mode"] = f"{self.config.feature_mode.value}_ovito_filtered"
+        features["_file_path"] = file_path
+        features["_ovito_filtered"] = True
+        features["_surface_radius"] = self.ovito_config.surface_radius
+        features["_smoothing_level"] = self.ovito_config.smoothing_level
+        
+        # 13. Calcular vacancies basado en átomos ORIGINALES (no filtrados)
+        calculated_vacancies = self.config.atm_total - n_atoms_original
+        features["vacancies"] = calculated_vacancies
+        
+        # 14. Limpiar pipeline
+        pipeline.modifiers.clear()
+        
+        return features, filter_stats
+    
+    def _ovito_data_to_dataframe(self, data) -> pd.DataFrame:
+        """Convertir datos de OVITO a DataFrame de pandas"""
+        df_dict = {}
+        
+        # Posiciones
+        positions = data.particles.positions
+        df_dict['x'] = positions[:, 0]
+        df_dict['y'] = positions[:, 1] 
+        df_dict['z'] = positions[:, 2]
+        
+        # Otras propiedades disponibles
+        for prop_name in data.particles.keys():
+            try:
+                prop_data = data.particles[prop_name]
+                if len(prop_data.shape) == 1:  # Propiedades escalares
+                    df_dict[prop_name] = prop_data[:]
+                elif len(prop_data.shape) == 2 and prop_data.shape[1] <= 6:  # Tensores pequeños
+                    for i in range(prop_data.shape[1]):
+                        df_dict[f"{prop_name}[{i+1}]"] = prop_data[:, i]
+            except Exception as e:
+                logger.debug(f"No se pudo extraer propiedad {prop_name}: {e}")
+        
+        return pd.DataFrame(df_dict)
+    
+    def _add_filter_statistics_to_report(self, filter_stats: List[Dict[str, Any]]):
+        """Agregar estadísticas del filtrado OVITO al reporte"""
+        if not filter_stats:
+            return
+        
+        df_stats = pd.DataFrame(filter_stats)
+        
+        logger.info("ESTADÍSTICAS DEL FILTRADO OVITO:")
+        logger.info(f"  - Ratio promedio de filtrado: {df_stats['filter_ratio'].mean():.3f}")
+        logger.info(f"  - Ratio mínimo: {df_stats['filter_ratio'].min():.3f}")
+        logger.info(f"  - Ratio máximo: {df_stats['filter_ratio'].max():.3f}")
+        logger.info(f"  - Átomos promedio removidos: {df_stats['atoms_removed'].mean():.0f}")
+        logger.info(f"  - Átomos promedio restantes: {df_stats['n_atoms_filtered'].mean():.0f}")
     
     def _validate_and_clean_dataset(self, dataset: pd.DataFrame):
         """Validar y limpiar dataset para evitar fuga"""
@@ -226,282 +401,208 @@ class BatchDumpProcessor:
         # Log resultados de validación
         suspicious = leakage_analysis['suspicious_features']
         if suspicious:
-            logger.warning(f"Patrones sospechosos detectados: {len(suspicious)}")
-            for pattern in suspicious[:3]:
-                logger.warning(f"  - {pattern}")
-    
-    def _save_intermediate_results(self, dataset: pd.DataFrame, directory: str):
-        """Guardar resultados intermedios"""
-        output_dir = Path(directory) / "processing_output"
-        output_dir.mkdir(exist_ok=True)
+            logger.warning(f"Patrones sospechosos detectados en {len(suspicious)} features")
+            logger.warning("Considera revisar estas features manualmente")
         
-        # Separar features de metadata
+        # Log features finales
         feature_cols = [col for col in dataset.columns 
-                       if not col.startswith('_') and col not in ['file_path', 'file_hash']]
-        metadata_cols = [col for col in dataset.columns if col.startswith('_')]
-        
-        # Guardar features
-        features_path = output_dir / "enhanced_features.csv"  # ACTUALIZADO NOMBRE
-        dataset[feature_cols].to_csv(features_path)
-        
-        # Guardar metadata separadamente
-        if metadata_cols:
-            metadata_path = output_dir / "metadata.csv"
-            dataset[metadata_cols].to_csv(metadata_path)
-        
-        # Guardar resumen de features mejoradas
-        feature_summary = self.feature_extractor.get_feature_summary()
-        summary_path = output_dir / "feature_summary.json"
-        import json
-        with open(summary_path, 'w') as f:
-            json.dump(feature_summary, f, indent=2)
-        
-        # Guardar configuración
-        config_path = output_dir / "processing_config.json"
-        config_dict = asdict(self.config)
-        config_dict['extractor_type'] = 'EnhancedSafeFeatureExtractor'  # NUEVO
-        with open(config_path, 'w') as f:
-            json.dump(config_dict, f, indent=2, default=str)
-        
-        logger.info(f"Resultados intermedios guardados en {output_dir}")
+                       if not col.startswith('_') and col not in ['vacancies', 'file_hash']]
+        logger.info(f"Features finales para ML: {len(feature_cols)}")
     
-    def _generate_final_report(self, dataset: pd.DataFrame, errors: List[str]):
+    def _generate_final_report(self, dataset: pd.DataFrame, errors: List[Dict], filter_stats: Optional[List[Dict]] = None):
         """Generar reporte final del procesamiento"""
-        # Contar tipos de columnas
-        feature_cols = [col for col in dataset.columns 
-                       if not col.startswith('_') and col not in ['file_path', 'file_hash', 'vacancies']]
+        logger.info("=" * 50)
+        logger.info("REPORTE FINAL DE PROCESAMIENTO MEJORADO")
+        logger.info("=" * 50)
         
-        total_files = len(dataset)
-        total_features = len(feature_cols)
-        
-        # Reporte de progreso final
-        if errors:
-            self._report_progress(
-                total_files, total_files,
-                f"Completado con {len(errors)} errores: {total_features} features mejoradas extraídas"
-            )
-            logger.warning(f"Se encontraron {len(errors)} errores durante el procesamiento")
+        # Modo de procesamiento
+        if self.ovito_config.enable_ovito_filter:
+            logger.info("MODO: OVITO FILTRADO (features calculadas solo en región nanoporo)")
         else:
-            self._report_progress(
-                total_files, total_files,
-                f"Procesamiento completado: {total_features} features mejoradas extraídas"
-            )
+            logger.info("MODO: ESTÁNDAR (features calculadas en todos los átomos)")
         
-        # Log estadísticas del target (si existe)
-        if 'vacancies' in dataset.columns:
-            vac_stats = dataset['vacancies'].describe()
-            logger.info(f"Distribución del target (vacancies): "
-                       f"min={vac_stats['min']:.0f}, max={vac_stats['max']:.0f}, "
-                       f"mean={vac_stats['mean']:.1f}")
+        # Estadísticas generales
+        logger.info(f"Archivos procesados exitosamente: {len(dataset)}")
+        logger.info(f"Errores encontrados: {len(errors)}")
+        
+        if errors:
+            logger.warning("Archivos con errores:")
+            for error in errors[:5]:  # Mostrar máximo 5 errores
+                logger.warning(f"  - {Path(error['file']).name}: {error['error']}")
+        
+        # Estadísticas del dataset
+        if len(dataset) > 0:
+            # Columnas por tipo
+            feature_cols = [col for col in dataset.columns 
+                           if not col.startswith('_') and col not in ['vacancies', 'file_hash']]
+            metadata_cols = [col for col in dataset.columns if col.startswith('_')]
+            
+            logger.info(f"Features extraídas: {len(feature_cols)}")
+            logger.info(f"Columnas de metadata: {len(metadata_cols)}")
+            
+            # Estadísticas de vacancies
+            if 'vacancies' in dataset.columns:
+                vac_stats = dataset['vacancies'].describe()
+                logger.info(f"Rango de vacancies: {vac_stats['min']:.0f} - {vac_stats['max']:.0f}")
+                logger.info(f"Media de vacancies: {vac_stats['mean']:.2f}")
+                logger.info(f"Desviación estándar de vacancies: {vac_stats['std']:.2f}")
+            
+            # Estadísticas específicas de OVITO
+            if filter_stats:
+                df_filter = pd.DataFrame(filter_stats)
+                logger.info("ESTADÍSTICAS DE FILTRADO OVITO:")
+                logger.info(f"  - Ratio promedio de átomos conservados: {df_filter['filter_ratio'].mean():.3f}")
+                logger.info(f"  - Átomos promedio por archivo (post-filtro): {df_filter['n_atoms_filtered'].mean():.0f}")
+                logger.info(f"  - Átomos promedio removidos: {df_filter['atoms_removed'].mean():.0f}")
+            
+            # Verificar calidad de features
+            null_counts = dataset[feature_cols].isnull().sum()
+            features_with_nulls = null_counts[null_counts > 0]
+            
+            if len(features_with_nulls) > 0:
+                logger.warning(f"Features con valores nulos: {len(features_with_nulls)}")
+                for feature, null_count in features_with_nulls.head().items():
+                    logger.warning(f"  - {feature}: {null_count} nulos")
+            else:
+                logger.info("✓ No se encontraron valores nulos en features")
+            
+            # Verificar varianza
+            numeric_features = dataset[feature_cols].select_dtypes(include=[np.number])
+            zero_var_features = numeric_features.columns[numeric_features.var() == 0]
+            
+            if len(zero_var_features) > 0:
+                logger.warning(f"Features con varianza cero: {len(zero_var_features)}")
+                logger.warning("Considera eliminar estas features antes del entrenamiento")
+            else:
+                logger.info("✓ Todas las features tienen varianza positiva")
+        
+        logger.info("=" * 50)
     
-    def _report_progress(self, current: int, total: int, message: str = ""):
-        """Reportar progreso si hay callback"""
-        if self.progress_callback:
-            self.progress_callback(current, total, message)
+    def find_dump_files(self, directory: str) -> List[str]:
+        """Encontrar todos los archivos .dump en un directorio"""
+        directory_path = Path(directory)
+        dump_files = []
+        
+        # Patrones de búsqueda
+        patterns = ["*.dump", "*.dump.gz", "dump.*", "dump.*.gz"]
+        
+        for pattern in patterns:
+            dump_files.extend(directory_path.glob(pattern))
+        
+        return sorted([str(f) for f in dump_files])
     
     def stop_processing(self):
-        """Solicitar detener el procesamiento"""
+        """Detener el procesamiento"""
         self._stop_requested = True
-        logger.info("Solicitud de detención recibida")
+        logger.info("Solicitud de parada recibida")
     
-    def get_feature_summary(self, dataset: pd.DataFrame) -> Dict[str, Any]:
-        """Generar resumen detallado del dataset procesado"""
-        # Separar tipos de columnas
-        feature_cols = [col for col in dataset.columns 
-                       if not col.startswith('_') and col not in ['file_path', 'file_hash', 'vacancies']]
-        metadata_cols = [col for col in dataset.columns if col.startswith('_')]
-        
-        # Categorizar features (MEJORADO)
-        categories = self._categorize_enhanced_features(feature_cols)
-        
-        # Análisis de calidad
-        quality_metrics = self._analyze_data_quality(dataset, feature_cols)
-        
+    def reset_stop_flag(self):
+        """Resetear flag de parada"""
+        self._stop_requested = False
+    
+    def get_config_summary(self) -> Dict[str, Any]:
+        """Obtener resumen de la configuración actual"""
         summary = {
-            "processing_info": {
-                "total_files": len(dataset),
-                "total_features": len(feature_cols),
-                "feature_mode": self.config.feature_mode.value,
-                "extractor_type": "EnhancedSafeFeatureExtractor",  # NUEVO
-                "configuration": asdict(self.config)
-            },
-            "feature_categories": categories,
-            "data_quality": quality_metrics,
-            "target_info": self._analyze_target_info(dataset) if 'vacancies' in dataset.columns else None,
-            "enhanced_features_summary": self.feature_extractor.get_feature_summary()  # NUEVO
+            "atm_total": self.config.atm_total,
+            "energy_range": (self.config.energy_min, self.config.energy_max),
+            "energy_bins": self.config.energy_bins,
+            "feature_mode": self.config.feature_mode.value,
+            "add_noise": self.config.add_noise,
+            "noise_level": self.config.noise_level if self.config.add_noise else None,
+            "forbidden_features": list(self.config.forbidden_features),
+            "validate_features": self.config.validate_features,
+            # Configuración OVITO
+            "ovito_filter_enabled": self.ovito_config.enable_ovito_filter,
+            "surface_radius": self.ovito_config.surface_radius,
+            "smoothing_level": self.ovito_config.smoothing_level,
+            "apply_stress_tensor": self.ovito_config.apply_stress_tensor,
+            "stress_tensor": self.ovito_config.stress_tensor
         }
-        
         return summary
     
-    def _categorize_enhanced_features(self, feature_cols: List[str]) -> Dict[str, List[str]]:
-        """Categorizar features mejoradas por tipo"""
-        categories = {
-            "energy_basic": [],
-            "energy_advanced": [],
-            "stress_basic": [],
-            "stress_advanced": [],
-            "coordination": [],
-            "spatial_basic": [],
-            "spatial_advanced": [],
-            "voronoi": [],
-            "combined_advanced": [],
-            "ratios_advanced": [],
-            "other": []
-        }
+    def validate_configuration(self) -> Dict[str, Any]:
+        """Validar configuración antes del procesamiento"""
+        issues = []
+        warnings = []
         
-        for col in feature_cols:
-            col_lower = col.lower()
-            
-            # Energía básica vs avanzada
-            if any(x in col_lower for x in ['pe_mean', 'pe_std', 'pe_median', 'pe_iqr', 'pe_mad', 'pe_entropy']):
-                categories["energy_basic"].append(col)
-            elif any(x in col_lower for x in ['pe_skew', 'pe_kurt', 'thermal_fluctuation', 'pe_disorder', 'pe_gradient', 'pe_variability']):
-                categories["energy_advanced"].append(col)
-            
-            # Stress básico vs avanzado
-            elif any(x in col_lower for x in ['stress_i1_mean', 'stress_i2_mean', 'stress_i3_mean', 'stress_vm_mean', 'stress_hydro_mean']):
-                categories["stress_basic"].append(col)
-            elif any(x in col_lower for x in ['stress_instability', 'stress_anisotropy', 'hydrostatic_pressure', 'stress_i1_i2', 'stress_i2_i3']):
-                categories["stress_advanced"].append(col)
-            
-            # Coordinación
-            elif 'coord' in col_lower:
-                categories["coordination"].append(col)
-            
-            # Espaciales básicas vs avanzadas
-            elif any(x in col_lower for x in ['spatial_std', 'gyration_radius']):
-                categories["spatial_basic"].append(col)
-            elif any(x in col_lower for x in ['spatial_anisotropy', 'atomic_density']):
-                categories["spatial_advanced"].append(col)
-            
-            # Voronoi
-            elif 'voro' in col_lower:
-                categories["voronoi"].append(col)
-            
-            # Features combinadas avanzadas
-            elif any(x in col_lower for x in ['energy_stress_coupling', 'structural_cohesion', 'thermodynamic_imbalance', 
-                                            'vacancy_density_proxy', 'multiscale_disorder', 'energy_asymmetry']):
-                categories["combined_advanced"].append(col)
-            
-            # Ratios avanzados
-            elif any(x in col_lower for x in ['spatial_energy_proxy', 'volume_energy_density', 'volume_packing']):
-                categories["ratios_advanced"].append(col)
-            
-            else:
-                categories["other"].append(col)
+        # Validar parámetros básicos
+        if self.config.atm_total <= 0:
+            issues.append("atm_total debe ser positivo")
         
-        return categories
-    
-    def _analyze_data_quality(self, dataset: pd.DataFrame, feature_cols: List[str]) -> Dict[str, Any]:
-        """Analizar calidad de los datos"""
-        null_counts = dataset[feature_cols].isnull().sum()
-        inf_counts = dataset[feature_cols].apply(
-            lambda x: np.isinf(x).sum() if x.dtype in [np.float64, np.int64] else 0
-        )
+        if self.config.energy_min >= self.config.energy_max:
+            issues.append("energy_min debe ser menor que energy_max")
+        
+        if self.config.energy_bins <= 0:
+            issues.append("energy_bins debe ser positivo")
+        
+        # Validar configuración OVITO
+        if self.ovito_config.enable_ovito_filter:
+            if self.ovito_config.surface_radius <= 0:
+                issues.append("surface_radius debe ser positivo cuando OVITO está habilitado")
+            
+            if self.ovito_config.smoothing_level < 0:
+                warnings.append("smoothing_level negativo puede causar problemas")
+        
+        # Validar configuración de ruido
+        if self.config.add_noise and self.config.noise_level <= 0:
+            warnings.append("add_noise está activado pero noise_level no es positivo")
         
         return {
-            "completeness_ratio": float(1 - null_counts.sum() / (len(dataset) * len(feature_cols))),
-            "features_with_nulls": int((null_counts > 0).sum()),
-            "features_with_inf": int((inf_counts > 0).sum()),
-            "total_null_values": int(null_counts.sum())
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "warnings": warnings
         }
-    
-    def _analyze_target_info(self, dataset: pd.DataFrame) -> Dict[str, Any]:
-        """Analizar información del target"""
-        if 'vacancies' not in dataset.columns:
-            return None
-        
-        target = dataset['vacancies']
-        return {
-            "min": int(target.min()),
-            "max": int(target.max()),
-            "mean": float(target.mean()),
-            "std": float(target.std()),
-            "median": float(target.median()),
-            "unique_values": int(target.nunique())
-        }
-    
-    def analyze_leakage(self, dataset: pd.DataFrame) -> str:
-        """Realizar análisis completo de fuga y retornar reporte"""
-        analysis = self.leakage_detector.detect_leakage(dataset)
-        return self.leakage_detector.create_leakage_report(analysis)
 
 
-# Funciones utilitarias para preparación de ML (SIN CAMBIOS)
-
-def prepare_ml_dataset(dataset: pd.DataFrame,
-                      target_col: str = 'vacancies',
-                      remove_high_correlation: bool = True,
-                      correlation_threshold: float = 0.9) -> Tuple[pd.DataFrame, pd.Series]:
-    """
-    Preparar dataset para machine learning separando features del target
-    
-    IMPORTANTE: Esta función SEPARA correctamente features del target
-    """
-    if target_col not in dataset.columns:
-        raise ValueError(f"Columna target '{target_col}' no encontrada")
-    
-    # Extraer target
-    y = dataset[target_col].copy()
-    
-    # Identificar features (excluir target, metadata y auxiliares)
-    exclude_cols = {target_col, 'file_path', 'file_hash'}
-    exclude_cols.update([col for col in dataset.columns if col.startswith('_')])
-    
-    feature_cols = [col for col in dataset.columns if col not in exclude_cols]
-    X = dataset[feature_cols].copy()
-    
-    # Eliminar features de alta correlación si está habilitado
-    if remove_high_correlation:
-        detector = DataLeakageDetector(correlation_threshold)
-        
-        # Crear dataset temporal para análisis
-        temp_dataset = X.copy()
-        temp_dataset[target_col] = y
-        
-        analysis = detector.detect_leakage(temp_dataset, target_col)
-        
-        if 'high_risk_features' in analysis:
-            features_to_remove = [f['feature'] for f in analysis['high_risk_features']]
-            if features_to_remove:
-                X = X.drop(columns=features_to_remove, errors='ignore')
-                logger.info(f"Eliminadas {len(features_to_remove)} features de alta correlación")
-    
-    # Imputar valores faltantes
-    from sklearn.impute import SimpleImputer
-    imputer = SimpleImputer(strategy='median')
-    X_imputed = pd.DataFrame(
-        imputer.fit_transform(X),
-        columns=X.columns,
-        index=X.index
+# Funciones auxiliares para crear procesadores preconfigurados
+def create_standard_processor(atm_total: int = 16384,
+                            energy_min: float = -4.0,
+                            energy_max: float = -3.0,
+                            energy_bins: int = 10,
+                            feature_mode: FeatureMode = FeatureMode.STANDARD) -> BatchDumpProcessor:
+    """Crear procesador estándar sin filtrado OVITO"""
+    config = ProcessingConfig(
+        atm_total=atm_total,
+        energy_min=energy_min,
+        energy_max=energy_max,
+        energy_bins=energy_bins,
+        feature_mode=feature_mode,
+        add_noise=False,
+        validate_features=True
     )
     
-    logger.info(f"Dataset ML preparado: {X_imputed.shape[0]} muestras, "
-               f"{X_imputed.shape[1]} features mejoradas, target: {target_col}")
+    ovito_config = OvitoFilterConfig(enable_ovito_filter=False)
     
-    return X_imputed, y
+    return BatchDumpProcessor(config, ovito_config)
 
 
-def create_train_test_split(dataset: pd.DataFrame,
-                           target_col: str = 'vacancies',
-                           test_size: float = 0.2,
-                           random_state: int = 42) -> Tuple[pd.DataFrame, pd.DataFrame, pd.Series, pd.Series]:
-    """Crear división train/test con estratificación"""
-    from sklearn.model_selection import train_test_split
-    
-    X, y = prepare_ml_dataset(dataset, target_col)
-    
-    # Estratificar por cuartiles del target si es continuo
-    if y.nunique() > 10:
-        stratify_bins = pd.qcut(y, q=4, labels=False, duplicates='drop')
-    else:
-        stratify_bins = y
-    
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state,
-        stratify=stratify_bins
+def create_ovito_processor(atm_total: int = 16384,
+                          surface_radius: float = 3.0,
+                          smoothing_level: int = 0,
+                          energy_min: float = -4.0,
+                          energy_max: float = -3.0,
+                          energy_bins: int = 10,
+                          apply_stress: bool = False,
+                          stress_tensor: Tuple[float, float, float] = (1.0, 1.0, 1.0),
+                          feature_mode: FeatureMode = FeatureMode.STANDARD) -> BatchDumpProcessor:
+    """Crear procesador con filtrado OVITO habilitado"""
+    config = ProcessingConfig(
+        atm_total=atm_total,
+        energy_min=energy_min,
+        energy_max=energy_max,
+        energy_bins=energy_bins,
+        feature_mode=feature_mode,
+        add_noise=False,
+        validate_features=True
     )
     
-    logger.info(f"División creada: {len(X_train)} train, {len(X_test)} test con features mejoradas")
+    ovito_config = OvitoFilterConfig(
+        enable_ovito_filter=True,
+        surface_radius=surface_radius,
+        smoothing_level=smoothing_level,
+        apply_stress_tensor=apply_stress,
+        stress_tensor=stress_tensor,
+        export_filtered_dumps=False
+    )
     
-    return X_train, X_test, y_train, y_test
+    return BatchDumpProcessor(config, ovito_config)
