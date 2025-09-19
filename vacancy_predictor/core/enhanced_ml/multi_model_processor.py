@@ -30,10 +30,10 @@ try:
     import tensorflow as tf
     # Intentar importación moderna primero
     try:
-        from tensorflow.keras.models import Sequential
-        from tensorflow.keras.layers import Dense, Dropout
-        from tensorflow.keras.optimizers import Adam
-        from tensorflow.keras.callbacks import EarlyStopping
+        from keras.models import Sequential
+        from keras.layers import Dense, Dropout
+        from keras.optimizers import Adam
+        from keras.callbacks import EarlyStopping
     except ImportError:
         # Fallback para versiones más antiguas
         from keras.models import Sequential
